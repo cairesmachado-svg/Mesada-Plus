@@ -244,7 +244,7 @@
   function gradeLine(g) {
     const c = getChild(g.childId), m = R.schoolMonth(state, g.childId, g.date.slice(0, 7)), info = m.perGrade[g.id];
     const effect = g.status === 'confirmed' ? (info && info.pts + info.improve ? `+${pts(info.pts + info.improve)}` : 'sem bônus') : `+${pts(R.gradePoints(g.pct))}`;
-    return `<div class="list-row"><div class="event-ico bg-purple purple">${icon('book')}</div><div class="list-main"><div class="list-name">${esc(g.subject)} · ${esc(g.raw)} <span class="muted">(${g.pct}%)</span></div><div class="list-meta">${esc(c.name)} · ${fmtD(g.date)}${g.source === 'classapp' ? ' · ClassApp' : ''}${info && info.improve ? ' · 📈 melhora' : ''}</div></div><div style="text-align:right"><div class="list-price ${g.status === 'confirmed' ? 'good' : 'gold'}">${effect}</div>${gradeActions(g)}</div></div>`;
+    return `<div class="list-row"><div class="event-ico bg-purple purple">${icon('book')}</div><div class="list-main"><div class="list-name">${esc(g.subject)} · ${esc(g.raw)} <span class="muted">(${g.pct}%)</span></div><div class="list-meta">${esc(c.name)} · ${fmtD(g.date)}${g.source === 'classapp' ? ' · e-mail da escola' : ''}${info && info.improve ? ' · 📈 melhora' : ''}</div></div><div style="text-align:right"><div class="list-price ${g.status === 'confirmed' ? 'good' : 'gold'}">${effect}</div>${gradeActions(g)}</div></div>`;
   }
   function gradeActions(g) {
     if (!isParent()) return `<span class="pill ${g.status === 'pending' ? 'pending' : 'justified'}">${g.status === 'pending' ? 'Aguardando' : 'Confirmada'}</span>`;
@@ -316,9 +316,9 @@
   function classAppCard() {
     const cfg = classAppCfg(), ready = cfg.url && cfg.token;
     const missing = state.children.filter(c => !c.alias).map(c => c.name);
-    return `${sec('ClassApp', 'Notas e ocorrências lidas do seu Gmail por um Google Apps Script. Só entram as que você aprovou na planilha.')}
+    return `${sec('E-mails da escola', 'Avisos do Galois e do ClassApp lidos do Gmail por um Google Apps Script. Só entram os que você aprovou na planilha.')}
     <div class="card"><div class="grid two sm-stack"><form id="form-classapp"><div class="form-field"><label for="fm-ca-url">URL do Apps Script (termina em /exec)</label><input id="fm-ca-url" name="url" type="url" placeholder="https://script.google.com/macros/s/.../exec" value="${esc(cfg.url || '')}" /></div><div class="form-field"><label for="fm-ca-token">Token</label><input id="fm-ca-token" name="token" type="password" autocomplete="off" value="${esc(cfg.token || '')}" /></div><div class="btns"><button class="btn secondary" type="submit">Salvar</button><button class="btn" type="button" data-act="classapp-import" ${ready ? '' : 'disabled'}>${icon('mail')} Importar aprovados</button></div></form>
-    <div class="hint-box">A URL e o token ficam só neste navegador. Não vão para o código nem para o backup.<br><br>Cada filha precisa de um apelido igual ao da planilha (${state.children.map(c => `<strong>${esc(c.name)}: ${esc(c.alias || 'sem apelido')}</strong>`).join(', ')}).${missing.length ? ` Defina em Regras › Perfis.` : ''}<br><br>Notas entram confirmadas. Negativas entram para você classificar o nível. O guia de instalação está em <strong>apps-script/LEIAME.md</strong> no repositório.</div></div></div>`;
+    <div class="hint-box">A URL e o token ficam só neste navegador. Não vão para o código nem para o backup.<br><br>Cada filha precisa de um apelido igual ao da planilha (${state.children.map(c => `<strong>${esc(c.name)}: ${esc(c.alias || 'sem apelido')}</strong>`).join(', ')}).${missing.length ? ` Defina em Regras › Perfis.` : ''}<br><br>Notas e ocorrências positivas (monitoria, elogio, destaque) entram confirmadas. As demais entram para você classificar. O guia de instalação está em <strong>apps-script/LEIAME.md</strong> no repositório.</div></div></div>`;
   }
 
   /* ---------- Rotina ---------- */
@@ -423,7 +423,7 @@
     ].map(([i, t, d]) => `<div class="list-row"><div class="event-ico bg-purple purple">${icon(i)}</div><div class="list-main"><div class="list-name">${t}</div><div class="list-meta">${d}</div></div></div>`).join('')}</div></div></div>
     ${parent ? `<div class="form-actions"><button class="btn" type="submit">Salvar regras</button></div>` : ''}
     </form>
-    ${sec('Perfis', 'O apelido liga cada filha à planilha do ClassApp sem expor nomes.', parent ? `<button class="btn secondary small" data-act="modal-child">${icon('plus')} Novo perfil</button>` : '')}
+    ${sec('Perfis', 'O apelido liga cada filha à planilha dos e-mails da escola sem expor nomes.', parent ? `<button class="btn secondary small" data-act="modal-child">${icon('plus')} Novo perfil</button>` : '')}
     <div class="grid ${viewChildren().length >= 3 ? 'three' : 'two'}">${viewChildren().map(p => { const sp = { ...R.DEFAULT_SPLIT, ...p.split }; return `<div class="card tight"><div class="child-head" style="margin-bottom:10px"><div class="avatar" style="background:${p.bg};color:${p.color}">${esc(p.name.slice(0, 1).toUpperCase())}</div><div class="list-main"><div class="child-name">${esc(p.name)}</div><div class="child-age">${p.age} anos · apelido ${esc(p.alias || '—')}</div></div>${parent ? `<button class="btn secondary small" data-act="modal-edit-child" data-id="${p.id}" aria-label="Editar ${esc(p.name)}">${icon('edit')}</button>` : ''}</div><div class="list-meta">Base ${money(R.childBase(state, p))}${Number.isSafeInteger(p.base) ? '' : ' (padrão)'} · Poupar ${sp.save}% · Doar ${sp.give}%</div></div>`; }).join('')}</div>
     ${parent ? `${sec('Segurança e backup', 'Sem servidor: o backup é a sua cópia de segurança.')}
     <div class="grid two sm-stack"><div class="card"><h2 class="section-title" style="margin-bottom:7px">PIN do responsável</h2><p class="section-hint">${c.pin ? 'PIN ativo. Ao trocar de perfil, a área do responsável pede o PIN.' : 'Sem PIN, qualquer pessoa neste aparelho pode aprovar bônus.'}</p><form id="form-pin" style="margin-top:14px"><div class="rules-grid"><div class="rule-field"><label for="pin-new">${c.pin ? 'Novo PIN' : 'PIN'} (4 a 8 dígitos)</label><input id="pin-new" name="pin" type="password" inputmode="numeric" pattern="[0-9]{4,8}" autocomplete="new-password" required /></div><div class="rule-field"><label for="pin-again">Repita o PIN</label><input id="pin-again" name="again" type="password" inputmode="numeric" pattern="[0-9]{4,8}" autocomplete="new-password" required /></div></div><div class="form-actions"><button class="btn" type="submit">${icon('key')} ${c.pin ? 'Trocar PIN' : 'Criar PIN'}</button>${c.pin ? `<button class="btn secondary" type="button" data-act="pin-remove">Remover PIN</button>` : ''}</div></form><div class="list-meta" style="margin-top:8px">Proteção leve para um aparelho compartilhado. Não substitui login.</div></div>
@@ -451,9 +451,9 @@
       shellModal('Lançar nota', isParent() ? 'Aceita 9,5 · 95 · 95% · 38/40 · conceitos (A, MB, B...).' : 'Sua nota fica aguardando a conferência do responsável.', `${isParent() ? `<div class="form-field"><label for="fm-child">Filha</label><select id="fm-child" name="child" required>${childOptions()}</select></div>` : `<input type="hidden" name="child" value="${own}" />`}<div class="form-field"><label for="fm-subject">Disciplina</label><select id="fm-subject" name="subject">${R.SUBJECTS.map(s => `<option>${s}</option>`).join('')}</select></div><div class="rules-grid"><div class="form-field"><label for="fm-raw">Nota</label><input id="fm-raw" name="raw" type="text" inputmode="decimal" maxlength="12" placeholder="9,5" required /></div><div class="form-field"><label for="fm-scale">Escala</label><select id="fm-scale" name="scale"><option value="auto">Automática</option><option value="10">0 a 10</option><option value="100">0 a 100</option></select></div></div><div id="grade-preview" class="grade-preview" aria-live="polite"></div>${input('date', 'Data da avaliação', dateLimits())}`, isParent() ? 'Lançar nota' : 'Enviar para conferência', 'form-grade');
     } else if (which === 'classify') {
       const o = state.occurrences.find(x => x.id === id); if (!o) return;
-      shellModal('Classificar ocorrência', `${getChild(o.childId).name} · ${fmtD(o.date)}. Veio do ClassApp. Confira o e-mail e escolha o tipo.`, `<input type="hidden" name="id" value="${o.id}" /><div class="form-field"><label for="fm-kind">Tipo</label><select id="fm-kind" name="kind"><optgroup label="Positivas">${R.POS_KINDS.map(k => `<option value="pos:${k.id}">${esc(k.title)}</option>`).join('')}</optgroup><optgroup label="Para orientar">${R.NEG_KINDS.map(k => `<option value="neg:${k.id}" ${k.level === 1 ? 'selected' : ''}>Nível ${k.level} · ${esc(k.title)}</option>`).join('')}</optgroup></select></div>`, 'Classificar e aprovar', 'form-classify');
+      shellModal('Classificar ocorrência', `${getChild(o.childId).name} · ${fmtD(o.date)}. Veio do e-mail da escola. Confira e escolha o tipo.`, `<input type="hidden" name="id" value="${o.id}" /><div class="form-field"><label for="fm-kind">Tipo</label><select id="fm-kind" name="kind"><optgroup label="Positivas">${R.POS_KINDS.map(k => `<option value="pos:${k.id}">${esc(k.title)}</option>`).join('')}</optgroup><optgroup label="Para orientar">${R.NEG_KINDS.map(k => `<option value="neg:${k.id}" ${k.level === 1 ? 'selected' : ''}>Nível ${k.level} · ${esc(k.title)}</option>`).join('')}</optgroup></select></div>`, 'Classificar e aprovar', 'form-classify');
     } else if (which === 'child') {
-      shellModal('Adicionar perfil', 'Use um apelido curto para ligar ao ClassApp, como F09.', `${input('name', 'Nome ou apelido', 'type="text" maxlength="25"')}${input('age', 'Idade', 'type="number" min="6" max="19" value="12"')}<div class="form-field"><label for="fm-alias">Apelido na planilha (opcional)</label><input id="fm-alias" name="alias" type="text" maxlength="6" placeholder="F12" /></div>`, 'Adicionar', 'form-child');
+      shellModal('Adicionar perfil', 'Use um apelido curto para ligar aos e-mails da escola, como F09.', `${input('name', 'Nome ou apelido', 'type="text" maxlength="25"')}${input('age', 'Idade', 'type="number" min="6" max="19" value="12"')}<div class="form-field"><label for="fm-alias">Apelido na planilha (opcional)</label><input id="fm-alias" name="alias" type="text" maxlength="6" placeholder="F12" /></div>`, 'Adicionar', 'form-child');
     } else if (which === 'edit-child') {
       const c = getChild(id), sp = { ...R.DEFAULT_SPLIT, ...c.split };
       shellModal('Editar perfil', `Dados de ${c.name}. Deixe a base vazia para usar o padrão da casa.`, `<input type="hidden" name="id" value="${c.id}" />${input('name', 'Nome ou apelido', `type="text" maxlength="25" value="${esc(c.name)}"`)}<div class="rules-grid">${input('age', 'Idade', `type="number" min="6" max="19" value="${c.age}"`)}<div class="form-field"><label for="fm-alias">Apelido na planilha</label><input id="fm-alias" name="alias" type="text" maxlength="6" value="${esc(c.alias || '')}" placeholder="F12" /></div><div class="form-field"><label for="fm-base">Mesada-base própria (R$)</label><input id="fm-base" name="base" type="number" min="0" max="999" step="1" value="${Number.isSafeInteger(c.base) ? c.base / 100 : ''}" placeholder="${state.config.base / 100}" /></div><div class="form-field"><label for="fm-save">Poupar (% da mesada)</label><input id="fm-save" name="save" type="number" min="0" max="100" value="${sp.save}" required /></div><div class="form-field"><label for="fm-give">Doar (% da mesada)</label><input id="fm-give" name="give" type="number" min="0" max="100" value="${sp.give}" required /></div></div>`, 'Salvar', 'form-edit-child');
@@ -591,6 +591,11 @@
     const d = new Date(v); if (Number.isNaN(d.getTime())) return null;
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   }
+  // Ex.: "Monitoria · Português · e-mail da escola". Sem nomes nem matrícula.
+  function importDetail(it) {
+    const parts = [String(it?.descricao || '').trim().slice(0, 60), it?.disciplina ? matchSubject(it.disciplina) : ''].filter(Boolean);
+    return [...parts, 'e-mail da escola'].join(' · ');
+  }
   function applyImport(items) {
     const seen = new Set(state.importedIds); let added = 0, skipped = 0;
     for (const it of items) {
@@ -602,8 +607,10 @@
       if (it.tipo === 'nota') {
         const pct = Number(it.pct); if (!Number.isFinite(pct) || pct < 0 || pct > 100) { skipped++; continue; }
         state.grades.push({ ...base, subject: matchSubject(it.disciplina), raw: `${Math.round(pct * 10) / 10}%`, pct: Math.round(pct * 10) / 10, status: 'confirmed' });
-      } else if (it.tipo === 'ocorrencia_positiva') state.occurrences.push({ ...base, polarity: 'pos', kind: 'elogio', detail: 'Importada do ClassApp', status: 'confirmed' });
-      else if (it.tipo === 'ocorrencia_negativa') state.occurrences.push({ ...base, polarity: 'neg', kind: 'classificar', detail: 'Importada do ClassApp', status: 'pending', recovered: false });
+      } else if (it.tipo === 'ocorrencia_positiva') {
+        const kind = R.POS_KINDS.some(k => k.id === it.categoria) ? it.categoria : 'elogio';
+        state.occurrences.push({ ...base, polarity: 'pos', kind, detail: importDetail(it), status: 'confirmed' });
+      } else if (it.tipo === 'ocorrencia_negativa' || it.tipo === 'ocorrencia') state.occurrences.push({ ...base, polarity: 'neg', kind: 'classificar', detail: importDetail(it), status: 'pending', recovered: false });
       else { skipped++; continue; }
       seen.add(extId); added++;
     }
@@ -620,7 +627,7 @@
     try { const r = await fetch(url.toString(), { redirect: 'follow' }); items = await r.json(); } catch { return notify('Não consegui ler o Apps Script. Confira a URL e se a implantação está ativa.'); }
     if (!Array.isArray(items)) return notify(items && items.erro ? `Apps Script: ${items.erro}` : 'Resposta inesperada do Apps Script.');
     const res = applyImport(items);
-    commit(`ClassApp: ${res.added} novo(s), ${res.skipped} ignorado(s) ou já importado(s).`);
+    commit(`E-mails da escola: ${res.added} novo(s), ${res.skipped} ignorado(s) ou já importado(s).`);
   }
 
   /* ---------- Eventos ---------- */
@@ -745,7 +752,7 @@
     if (fid === 'form-classapp') {
       const url = String(data.url || '').trim(), token = String(data.token || '').trim();
       if (url && !/^https:\/\/script\.google(usercontent)?\.com\//.test(url)) return notify('A URL deve ser do Google Apps Script (https://script.google.com/...).');
-      store.set(CLASSAPP_KEY, JSON.stringify({ url, token })); render(); return notify('Configuração do ClassApp salva neste navegador.');
+      store.set(CLASSAPP_KEY, JSON.stringify({ url, token })); render(); return notify('Configuração dos e-mails da escola salva neste navegador.');
     }
     if (fid === 'form-occurrence' || fid === 'form-classify') {
       const [polarity, kind] = String(data.kind || '').split(':');

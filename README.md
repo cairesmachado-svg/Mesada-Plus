@@ -15,7 +15,7 @@ https://cairesmachado-svg.github.io/Mesada-Plus/
 - **Jogo.** XP, dez níveis com nomes por idade, sequência de dias com coringa semanal, doze conquistas e confete.
 - **Meta da família.** Os dias de estudo de todas somam para uma recompensa coletiva. Não há ranking entre irmãs.
 - **Autonomia por idade.** A partir de 11 anos, a filha marca os próprios hábitos e lança notas. O responsável aprova.
-- **ClassApp.** Um Google Apps Script lê o Gmail todo dia e prepara notas e ocorrências para aprovação. Ver `apps-script/LEIAME.md`.
+- **E-mails da escola.** Um Google Apps Script lê o Gmail todo dia, entende os avisos do Galois e do ClassApp e prepara notas e ocorrências para aprovação. Ver `apps-script/LEIAME.md`.
 - **PIN do responsável, backup em JSON e instalação na tela inicial do celular.**
 
 ## Regras padrão
@@ -55,7 +55,7 @@ index.html            página
 css/app.css           estilos
 js/rules.js           regras e cálculos (sem DOM)
 js/app.js             interface
-apps-script/          rotina do ClassApp no Gmail
+apps-script/          rotina dos e-mails da escola (Galois e ClassApp)
 tests/                testes das regras
 ```
 
