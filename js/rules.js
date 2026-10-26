@@ -13,26 +13,26 @@
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
 
-  const VERSION = 2;
+  const VERSION = 3;
 
   /* ---------- Escola ---------- */
 
   // Ocorrências negativas: o nível define o ajuste, que só sai do bônus.
   const NEG_KINDS = [
-    { id: 'material', title: 'Esqueceu material escolar', level: 1, summary: 'Livro, caderno, agenda ou item simples' },
-    { id: 'entrega', title: 'Atividade não entregue ou incompleta', level: 2, summary: 'Atividade feita mas não entregue, ou incompleta' },
-    { id: 'dever', title: 'Dever de casa não realizado', level: 3, summary: 'Atividade escolar obrigatória não realizada' },
-    { id: 'reincidencia', title: 'Reincidência após orientação', level: 4, summary: 'Terceiro episódio da mesma falta no mês' },
-    { id: 'disciplina', title: 'Desrespeito ou indisciplina', level: 5, summary: 'Conduta intencional confirmada' },
-    { id: 'grave', title: 'Ocorrência disciplinar grave', level: 6, summary: 'Requer conversa e medidas educativas' }
+    { id: 'material', title: 'Esqueceu material', level: 1, summary: 'Livro, caderno, agenda ou outro item' },
+    { id: 'entrega', title: 'Atividade não entregue', level: 2, summary: 'Fez e não entregou, ou entregou pela metade' },
+    { id: 'dever', title: 'Dever de casa não feito', level: 3, summary: 'Tarefa obrigatória que ficou pra trás' },
+    { id: 'reincidencia', title: 'Repetiu depois do combinado', level: 4, summary: 'Terceira vez da mesma coisa no mês' },
+    { id: 'disciplina', title: 'Desrespeito ou bagunça', level: 5, summary: 'Atitude de propósito, confirmada' },
+    { id: 'grave', title: 'Ocorrência grave', level: 6, summary: 'Pede conversa séria e combinado novo' }
   ];
-  const UNCLASSIFIED = { id: 'classificar', title: 'Ocorrência a classificar', level: 0, summary: 'Veio do ClassApp. Escolha o nível ao aprovar.' };
+  const UNCLASSIFIED = { id: 'classificar', title: 'Ocorrência a classificar', level: 0, summary: 'Veio do e-mail da escola. Escolha o tipo.' };
 
   const POS_KINDS = [
     { id: 'elogio', title: 'Elogio de professor' },
-    { id: 'destaque', title: 'Destaque em atividade ou projeto' },
-    { id: 'ajuda', title: 'Ajudou colegas ou a turma' },
-    { id: 'participacao', title: 'Participação exemplar' }
+    { id: 'destaque', title: 'Destaque em trabalho ou prova' },
+    { id: 'ajuda', title: 'Ajudou colega ou a turma' },
+    { id: 'participacao', title: 'Participação (monitoria, aula extra)' }
   ];
 
   const SUBJECTS = ['Português', 'Matemática', 'Ciências', 'História', 'Geografia', 'Inglês', 'Arte',
@@ -42,7 +42,7 @@
   const GRADE_TIERS = [
     { min: 100, pts: 20, label: 'Nota máxima (100%)' },
     { min: 95, pts: 15, label: 'De 95% a 99%' },
-    { above: 90, pts: 10, label: 'Acima de 90% e abaixo de 95%' }
+    { above: 90, pts: 10, label: 'Acima de 90%' }
   ];
   const IMPROVE = { delta: 10, pts: 8, maxMonth: 2 };
   const POSITIVE = { pts: 10, maxMonth: 3 };
@@ -57,19 +57,19 @@
   // 25 + 10 + 10 + 15 + 10 + 5 = 75 pts por semana = R$ 7,50.
   const DEFAULT_TASKS = [
     { id: 'estudo', name: 'Estudo ou leitura', icon: 'book', target: 4, pts: 25, active: true },
-    { id: 'mochila', name: 'Preparar mochila e material', icon: 'school', target: 4, pts: 10, active: true },
+    { id: 'mochila', name: 'Mochila pronta', icon: 'school', target: 4, pts: 10, active: true },
     { id: 'cama', name: 'Arrumar a cama', icon: 'sun', target: 5, pts: 10, active: true },
-    { id: 'quarto', name: 'Manter o quarto organizado', icon: 'home', target: 5, pts: 15, active: true },
-    { id: 'extra', name: 'Colaboração doméstica extra', icon: 'spark', target: 1, pts: 10, active: true },
+    { id: 'quarto', name: 'Quarto em ordem', icon: 'home', target: 5, pts: 15, active: true },
+    { id: 'extra', name: 'Ajuda extra em casa', icon: 'spark', target: 1, pts: 10, active: true },
     { id: 'semana', name: 'Semana completa', icon: 'flame', target: 5, pts: 5, active: true, streak: true }
   ];
   const TASK_HELP = {
-    estudo: { kid: '15 minutos de leitura', mid: 'Bloco de 25 minutos de estudo', teen: 'Plano de estudo ou revisão cumpridos' },
-    mochila: 'Material conferido na véspera',
+    estudo: { kid: '15 min de leitura', mid: '25 min de estudo focado', teen: 'Estudar ou revisar pro que vem aí' },
+    mochila: 'Conferida na noite anterior',
     cama: 'Antes de sair de casa',
-    quarto: 'Roupas guardadas e mesa livre',
-    extra: 'Uma tarefa combinada e aprovada',
-    semana: 'Algum hábito registrado em 5 dias diferentes do ciclo'
+    quarto: 'Roupa guardada e mesa livre',
+    extra: 'Uma ajuda combinada',
+    semana: 'Algum hábito em 5 dias diferentes'
   };
 
   const DEFAULT_CONFIG = {
@@ -79,7 +79,7 @@
     centsPerPoint: 10,    // 1 ponto = R$ 0,10
     interestPct: 2,       // "juros do pai" ao mês sobre os cofrinhos de meta
     pin: null,            // { salt, hash } do PIN do responsável
-    familyGoal: { name: 'Passeio em família', emoji: '🎡', target: 30 }
+    familyGoal: { name: 'Passeio em família', emoji: '🎡', target: 20 }
   };
   const DEFAULT_SPLIT = { save: 20, give: 10 };
 
@@ -89,26 +89,26 @@
   const LEVEL_NAMES = {
     kid: ['🥚 Ovo misterioso', '🐣 Pintinho', '🐥 Passarinho', '🐦 Voadora', '🦜 Papagaia esperta',
       '🦉 Coruja sábia', '🦅 Águia', '🐉 Dragãozinha', '🦄 Unicórnio lendário', '🌟 Estrela da casa'],
-    mid: ['Aprendiz', 'Exploradora', 'Aventureira', 'Navegadora', 'Estrategista',
-      'Inventora', 'Capitã', 'Mestra', 'Lenda', 'Lenda suprema'],
-    teen: ['Início', 'Ritmo', 'Consistência', 'Autonomia', 'Planejamento',
-      'Foco', 'Domínio', 'Referência', 'Mentora', 'Excelência']
+    mid: ['Aprendiz', 'Exploradora', 'Aventureira', 'Desbravadora', 'Estrategista',
+      'Inventora', 'Capitã', 'Mestra', 'Lenda', 'Lendária'],
+    teen: ['Novata', 'No ritmo', 'Constante', 'Autônoma', 'Estrategista',
+      'Focada', 'Imparável', 'Referência', 'Mentora', 'Lendária']
   };
   const XP_GOAL_DONE = 30;
 
   const BADGES = [
-    { id: 'meta1', icon: '🎯', name: 'Primeiro sonho', desc: 'Criou a primeira meta de poupança' },
-    { id: 'poupa50', icon: '🐷', name: 'Poupadora', desc: 'Juntou R$ 50 nos cofrinhos de meta' },
-    { id: 'metaok', icon: '🏆', name: 'Sonho realizado', desc: 'Completou uma meta' },
-    { id: 'doar', icon: '💛', name: 'Coração generoso', desc: 'Separou dinheiro para doar' },
-    { id: 'juros', icon: '💰', name: 'Dinheiro que rende', desc: 'Recebeu rendimento no cofrinho' },
-    { id: 'nota90', icon: '📘', name: 'Acima de 90', desc: 'Tirou nota acima de 90%' },
-    { id: 'nota100', icon: '💯', name: 'Nota máxima', desc: 'Tirou 100% numa avaliação' },
-    { id: 'melhora', icon: '📈', name: 'Virada', desc: 'Subiu 10 pontos numa disciplina' },
-    { id: 'elogio', icon: '⭐', name: 'Elogiada', desc: 'Recebeu uma ocorrência positiva' },
-    { id: 'semana', icon: '🔥', name: 'Semana completa', desc: 'Hábitos em 5 dias de um ciclo' },
-    { id: 'chama14', icon: '☄️', name: 'Chama acesa', desc: 'Sequência de 14 dias' },
-    { id: 'nivel5', icon: '🚀', name: 'Nível 5', desc: 'Chegou ao nível 5' }
+    { id: 'meta1', icon: '🎯', name: 'Primeiro sonho', desc: 'Criou sua primeira meta' },
+    { id: 'poupa50', icon: '🐷', name: 'Poupadora', desc: 'Juntou R$ 50 nas metas' },
+    { id: 'metaok', icon: '🏆', name: 'Sonho realizado', desc: 'Comprou o que queria com a própria grana' },
+    { id: 'doar', icon: '💛', name: 'Coração generoso', desc: 'Separou grana pra doar' },
+    { id: 'juros', icon: '💰', name: 'Grana que rende', desc: 'Ganhou juros no cofrinho' },
+    { id: 'nota90', icon: '📘', name: 'Acima de 90', desc: 'Tirou mais de 90%' },
+    { id: 'nota100', icon: '💯', name: 'Gabaritou', desc: 'Tirou 100% numa prova' },
+    { id: 'melhora', icon: '📈', name: 'Virada', desc: 'Subiu 10 pontos numa matéria' },
+    { id: 'elogio', icon: '⭐', name: 'Elogiada', desc: 'Ganhou elogio da escola' },
+    { id: 'semana', icon: '🔥', name: 'Semana completa', desc: 'Hábitos em 5 dias da semana' },
+    { id: 'chama14', icon: '☄️', name: 'Chama acesa', desc: '14 dias seguidos' },
+    { id: 'nivel5', icon: '🚀', name: 'Nível 5', desc: 'Chegou no nível 5' }
   ];
 
   /* ---------- Datas ---------- */
@@ -400,57 +400,27 @@
     });
   }
 
-  function seed(todayStr) {
-    const m = todayStr.slice(0, 7), end = monthDays(m), day = Number(todayStr.slice(8));
-    const cd = x => dateOfDay(m, Math.min(x, end, Math.max(1, day)));
-    const recent = n => Array.from({ length: n }, (_, i) => addDays(todayStr, -i)).filter(d => inMonth(d, m));
-    const checkins = [];
-    const add = (childId, taskId, dates) => dates.forEach(d => checkins.push({ id: `ck_${childId}_${taskId}_${d}`, childId, taskId, date: d, month: m, week: cycleOf(d) }));
-    add('alice', 'estudo', recent(4)); add('alice', 'cama', recent(3));
-    add('leticia', 'estudo', recent(3)); add('leticia', 'mochila', recent(2));
-    add('cacula', 'estudo', recent(5)); add('cacula', 'cama', recent(2));
+  const DEFAULT_PARENTS = [{ id: 'igor', name: 'Igor' }, { id: 'luciana', name: 'Luciana' }];
+
+  // Começo limpo: as duas filhas, os dois responsáveis e R$ 100 de base para cada.
+  function seed() {
     return {
       version: VERSION,
+      parents: clone(DEFAULT_PARENTS),
       children: [
         { id: 'alice', name: 'Alice', age: 14, alias: 'F14', color: '#8056d9', bg: '#f0eaff', base: null, split: { save: 20, give: 10 } },
-        { id: 'leticia', name: 'Letícia', age: 12, alias: 'F12', color: '#0d9c92', bg: '#dcf7f3', base: null, split: { save: 20, give: 10 } },
-        { id: 'cacula', name: 'Caçula', age: 9, alias: 'F09', color: '#dc8a51', bg: '#fff0e5', base: null, split: { save: 30, give: 10 } }
+        { id: 'leticia', name: 'Letícia', age: 12, alias: 'F12', color: '#0d9c92', bg: '#dcf7f3', base: null, split: { save: 20, give: 10 } }
       ],
-      selected: 'alice', view: 'dashboard', role: 'parent',
+      selected: 'alice', view: 'dashboard', role: 'parent:igor',
       config: clone(DEFAULT_CONFIG),
       tasks: clone(DEFAULT_TASKS),
-      grades: [
-        { id: 'g1', childId: 'alice', date: cd(6), subject: 'Matemática', raw: '9,4', pct: 94, status: 'confirmed', source: 'manual' },
-        { id: 'g2', childId: 'leticia', date: cd(9), subject: 'Ciências', raw: '38/40', pct: 95, status: 'confirmed', source: 'manual' },
-        { id: 'g3', childId: 'cacula', date: cd(11), subject: 'Português', raw: '8', pct: 80, status: 'confirmed', source: 'manual' }
-      ],
-      occurrences: [
-        { id: 'oc1', childId: 'alice', polarity: 'neg', kind: 'material', date: cd(4), detail: 'Caderno de matemática', status: 'confirmed', recovered: false },
-        { id: 'oc2', childId: 'alice', polarity: 'neg', kind: 'entrega', date: cd(12), detail: 'Atividade de ciências incompleta', status: 'pending', recovered: false },
-        { id: 'oc3', childId: 'leticia', polarity: 'pos', kind: 'elogio', date: cd(10), detail: 'Apresentação de ciências', status: 'confirmed' },
-        { id: 'oc4', childId: 'cacula', polarity: 'pos', kind: 'ajuda', date: cd(8), detail: 'Ajudou colega na leitura', status: 'confirmed' }
-      ],
-      checkins,
-      bonuses: [
-        { id: 'bo1', childId: 'alice', taskId: 'cama', week: 0, month: m, pts: 10, date: cd(7) },
-        { id: 'bo2', childId: 'leticia', taskId: 'quarto', week: 0, month: m, pts: 15, date: cd(7) }
-      ],
-      goals: [
-        { id: 'goal1', childId: 'alice', name: 'Fone de ouvido', emoji: '🎧', target: 18000 },
-        { id: 'goal2', childId: 'leticia', name: 'Passeio especial', emoji: '🎡', target: 16000 },
-        { id: 'goal3', childId: 'cacula', name: 'Kit de desenho', emoji: '🎨', target: 6000 }
-      ],
-      ledger: [
-        { id: 'l1', childId: 'alice', type: 'opening', amount: 4200, date: cd(1), description: 'Saldo inicial fictício' },
-        { id: 'l2', childId: 'leticia', type: 'opening', amount: 3600, date: cd(1), description: 'Saldo inicial fictício' },
-        { id: 'l3', childId: 'cacula', type: 'opening', amount: 1500, date: cd(1), description: 'Saldo inicial fictício' },
-        { id: 'l4', childId: 'alice', type: 'save', amount: 1200, goalId: 'goal1', date: cd(3), description: 'Reserva para Fone de ouvido' },
-        { id: 'l5', childId: 'cacula', type: 'save', amount: 800, goalId: 'goal3', date: cd(3), description: 'Reserva para Kit de desenho' },
-        { id: 'l6', childId: 'cacula', type: 'give', amount: 200, date: cd(3), description: 'Separado para doar' }
-      ],
+      grades: [], occurrences: [], checkins: [], bonuses: [], goals: [], ledger: [],
       closures: [], seenBadges: {}, importedIds: []
     };
   }
+
+  // Registros de exemplo das versões 1 e 2 (ids fixos da semente antiga).
+  const DEMO_IDS = new Set(['g1', 'g2', 'g3', 'oc1', 'oc2', 'oc3', 'oc4', 'bo1', 'bo2', 'goal1', 'goal2', 'goal3', 'l1', 'l2', 'l3', 'l4', 'l5', 'l6']);
 
   // Converte dados salvos (v1 ou v2) para v2. Retorna null se o formato for inválido.
   function migrate(raw) {
@@ -466,6 +436,22 @@
       s.occurrences = (s.occurrences || []).map(o => ({ ...o, polarity: 'neg' }));
       s.bonuses = (s.bonuses || []).map(b => ({ ...b, pts: Math.round((b.amount || 0) / DEFAULT_CONFIG.centsPerPoint) }));
       s.version = 2;
+    }
+    if (s.version === 2) {
+      // v3: só Alice e Letícia, responsáveis Igor e Luciana, sem dados de exemplo.
+      const demo = x => !x || DEMO_IDS.has(x.id) || String(x.id).startsWith('ck_') || x.childId === 'cacula';
+      s.children = (s.children || []).filter(c => c && c.id !== 'cacula');
+      for (const k of ['grades', 'occurrences', 'checkins', 'bonuses', 'goals', 'ledger']) s[k] = (s[k] || []).filter(x => !demo(x));
+      s.ledger = s.ledger.filter(x => !x.goalId || !DEMO_IDS.has(x.goalId));
+      s.closures = (s.closures || []).filter(x => x && x.childId !== 'cacula');
+      for (const c of s.children) { if (c.id === 'alice') c.age = 14; if (c.id === 'leticia') c.age = 12; c.base = null; }
+      if (s.config) s.config.base = DEFAULT_CONFIG.base;
+      if (s.seenBadges) delete s.seenBadges.cacula;
+      if (s.seenLevel) delete s.seenLevel.cacula;
+      s.parents = clone(DEFAULT_PARENTS);
+      s.role = s.role === 'parent' ? 'parent:igor' : s.role;
+      if (s.selected === 'cacula') s.selected = 'alice';
+      s.version = 3;
     }
     if (s.version !== VERSION) return null;
 
@@ -499,7 +485,7 @@
     const own = x => x && okId(x.id) && kids.has(x.childId) && okDate(x.date);
     s.grades = s.grades.filter(g => own(g) && Number.isFinite(g.pct) && g.pct >= 0 && g.pct <= 100)
       .map(g => ({ ...g, subject: String(g.subject || 'Outra').slice(0, 30), raw: String(g.raw ?? g.pct).slice(0, 12), status: g.status === 'pending' ? 'pending' : 'confirmed' }));
-    s.occurrences = s.occurrences.filter(own).map(o => ({ polarity: 'neg', ...o, detail: String(o.detail || '').slice(0, 300) }));
+    s.occurrences = s.occurrences.filter(own).map(o => ({ polarity: 'neg', ...o, detail: String(o.detail || '').slice(0, 300), subject: String(o.subject || '').slice(0, 30), by: String(o.by || '').slice(0, 20) }));
     s.checkins = s.checkins.filter(own).map(c => ({ ...c, month: String(c.date).slice(0, 7), week: cycleOf(c.date) }));
     s.bonuses = s.bonuses.filter(b => own(b) && Number.isSafeInteger(b.pts) && Number.isInteger(b.week));
     s.goals = s.goals.filter(g => g && okId(g.id) && kids.has(g.childId) && Number.isSafeInteger(g.target) && g.target > 0)
@@ -510,15 +496,18 @@
     s.importedIds = s.importedIds.filter(x => typeof x === 'string').slice(-2000);
     s.tasks = mergeTasks(s.tasks);
     if (!s.seenBadges || typeof s.seenBadges !== 'object') s.seenBadges = {};
+    s.parents = (Array.isArray(s.parents) ? s.parents : []).filter(p => p && okId(p.id)).map(p => ({ id: p.id, name: String(p.name || 'Responsável').slice(0, 20) }));
+    if (!s.parents.length) s.parents = clone(DEFAULT_PARENTS);
     if (!s.children.some(c => c.id === s.selected)) s.selected = s.children[0].id;
-    if (!['dashboard', 'school', 'routine', 'wallet', 'rules'].includes(s.view)) s.view = 'dashboard';
-    if (s.role !== 'parent' && !s.children.some(c => `child:${c.id}` === s.role)) s.role = 'parent';
+    if (!['dashboard', 'school', 'lancar', 'routine', 'wallet', 'rules'].includes(s.view)) s.view = 'dashboard';
+    const roles = [...s.parents.map(p => `parent:${p.id}`), ...s.children.map(c => `child:${c.id}`)];
+    if (!roles.includes(s.role)) s.role = roles[0];
     return s;
   }
 
   return {
     VERSION, NEG_KINDS, UNCLASSIFIED, POS_KINDS, SUBJECTS, GRADE_TIERS, IMPROVE, POSITIVE, NEGATIVE, CONCEPTS,
-    DEFAULT_TASKS, DEFAULT_CONFIG, DEFAULT_SPLIT, LEVELS, LEVEL_NAMES, BADGES, XP_GOAL_DONE,
+    DEFAULT_TASKS, DEFAULT_CONFIG, DEFAULT_SPLIT, DEFAULT_PARENTS, LEVELS, LEVEL_NAMES, BADGES, XP_GOAL_DONE,
     dateOfDay, monthDays, cycleOf, datesForCycle, addDays, daysBetween, inMonth, byDate,
     parseGrade, gradePoints, previousGrade, findKind, findPos, schoolMonth, habitsPtsMonth, childBase,
     finances, jarSpend, jarSave, jarGive, goalSaved, interestFor, payoutSplit, futureValue,
