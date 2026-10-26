@@ -47,3 +47,20 @@
 .link-btn{white-space:nowrap}
 .child-foot .streak-chip{margin:0 6px 0 0;padding:3px 8px;font-size:10px}
 @media(max-width:630px){.grid.three.metrics-mobile,.grid.four.metrics-mobile{grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}.metric{padding:15px}.metric-number{font-size:20px}}
+
+/* ---------- v3: aba Lançar, atalhos ---------- */
+.quick-row{display:flex;gap:9px;flex-wrap:wrap;margin:18px 0 4px}.quick-row .btn{flex:1;min-width:120px}
+.lancar-card{max-width:640px}
+.seg-tabs{display:flex;gap:6px;background:#f3f4f8;border-radius:14px;padding:5px;margin-bottom:18px}
+.seg-tab{flex:1;border:0;background:transparent;border-radius:10px;padding:11px 8px;font-weight:800;font-size:12px;color:#6f7a90}
+.seg-tab.active{background:#fff;color:var(--ink);box-shadow:0 3px 10px #20274314}
+.seg-tab.seg-pos.active{color:var(--good)}.seg-tab.seg-neg.active{color:var(--gold)}.seg-tab.seg-nota.active{color:var(--purple)}
+.field-label{display:block;color:#758098;font-size:11px;font-weight:800;margin-bottom:7px}
+.chip-group{display:flex;gap:8px;flex-wrap:wrap}
+.radio-chip{cursor:pointer;display:inline-flex;align-items:center;gap:6px;padding:11px 16px}
+.radio-chip input{position:absolute;opacity:0;width:1px;height:1px}
+.radio-chip:focus-within{outline:3px solid #bdb5ff;outline-offset:2px}
+.mobile-nav .nav-plus{color:#fff}.mobile-nav .nav-plus svg{background:var(--purple);border-radius:50%;padding:3px;width:30px;height:30px;margin-top:-6px;box-shadow:0 6px 16px #695ce655}
+.mobile-nav .nav-plus span{color:var(--purple)}
+.mobile-nav .nav-plus.active svg{background:#4e43c9}
+@media(max-width:630px){.mobile-nav button{min-width:52px;padding:5px 2px}.seg-tab{font-size:11px;padding:10px 4px}}

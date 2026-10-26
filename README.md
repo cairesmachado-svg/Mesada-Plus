@@ -14,7 +14,8 @@ https://cairesmachado-svg.github.io/Mesada-Plus/
 - **Juros do pai.** Rendimento mensal configurável sobre o que está guardado nas metas.
 - **Jogo.** XP, dez níveis com nomes por idade, sequência de dias com coringa semanal, doze conquistas e confete.
 - **Meta da família.** Os dias de estudo de todas somam para uma recompensa coletiva. Não há ranking entre irmãs.
-- **Autonomia por idade.** A partir de 11 anos, a filha marca os próprios hábitos e lança notas. O responsável aprova.
+- **Aba Lançar.** Coisa boa, pra conversar ou nota em poucos toques. Igor e Luciana lançam valendo. Alice e Letícia mandam nota e coisa boa para aprovação.
+- **Família.** Alice (14) e Letícia (12), com Igor e Luciana como responsáveis. Cada lançamento guarda quem fez.
 - **E-mails da escola.** Um Google Apps Script lê o Gmail todo dia, entende os avisos do Galois e do ClassApp e prepara notas e ocorrências para aprovação. Ver `apps-script/LEIAME.md`.
 - **PIN do responsável, backup em JSON e instalação na tela inicial do celular.**
 
@@ -22,7 +23,7 @@ https://cairesmachado-svg.github.io/Mesada-Plus/
 
 | Parâmetro | Valor |
 |---|---|
-| Mesada-base | R$ 100 por filha (pode ser individual) |
+| Mesada-base | R$ 100 para Alice e R$ 100 para Letícia |
 | 1 ponto | R$ 0,10 |
 | Teto de hábitos | 30% da base (R$ 30) |
 | Teto escolar | 12% da base (R$ 12) |

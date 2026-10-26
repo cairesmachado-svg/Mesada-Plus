@@ -1,10 +1,20 @@
-// Testes das regras. Rode com: node --test tests/
+// Testes das regras. Rode com: node --test tests/*.test.js
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const R = require('../js/rules.js');
 
 const TODAY = '2026-10-25';
-const fresh = () => R.migrate(R.seed(TODAY));
+const fresh = () => R.migrate(R.seed());
+
+test('semente: Alice e Letícia, Igor e Luciana, R$ 100 de base, sem dados de exemplo', () => {
+  const s = fresh();
+  assert.deepEqual(s.children.map(c => [c.name, c.age]), [['Alice', 14], ['Letícia', 12]]);
+  assert.deepEqual(s.parents.map(p => p.name), ['Igor', 'Luciana']);
+  assert.equal(s.role, 'parent:igor');
+  assert.equal(R.finances(s, 'alice', '2026-10').total, 10000);
+  assert.equal(R.finances(s, 'leticia', '2026-10').total, 10000);
+  for (const k of ['grades', 'occurrences', 'checkins', 'bonuses', 'goals', 'ledger']) assert.equal(s[k].length, 0, k);
+});
 
 test('parseGrade entende escalas, frações e conceitos', () => {
   assert.equal(R.parseGrade('9,5'), 95);
@@ -29,7 +39,7 @@ test('bônus por nota: acima de 90%, 95% e 100%', () => {
   assert.equal(R.gradePoints(100), 20);
 });
 
-test('melhora de 10 pontos na mesma disciplina rende +8, no máximo 2 por mês', () => {
+test('melhora de 10 pontos na mesma matéria rende +8, no máximo 2 por mês', () => {
   const s = fresh();
   s.grades = [
     { id: 'a', childId: 'alice', date: '2026-09-10', subject: 'História', pct: 60, status: 'confirmed' },
@@ -55,7 +65,7 @@ test('ocorrências positivas: +10 cada, até 3 por mês', () => {
 
 test('negativas: a primeira do mês é conversa; as seguintes saem só do bônus', () => {
   const s = fresh();
-  s.grades = []; s.bonuses = [{ id: 'b', childId: 'alice', taskId: 'cama', week: 0, month: '2026-10', pts: 40, date: '2026-10-07' }];
+  s.bonuses = [{ id: 'b', childId: 'alice', taskId: 'cama', week: 0, month: '2026-10', pts: 40, date: '2026-10-07' }];
   s.occurrences = [
     { id: 'n1', childId: 'alice', polarity: 'neg', kind: 'dever', date: '2026-10-02', status: 'confirmed' },
     { id: 'n2', childId: 'alice', polarity: 'neg', kind: 'dever', date: '2026-10-08', status: 'confirmed' },
@@ -93,8 +103,8 @@ test('tetos: hábitos 30% e escola 12% da base', () => {
 
 test('base individual por filha muda os tetos proporcionalmente', () => {
   const s = fresh();
-  s.children.find(c => c.id === 'cacula').base = 4000;
-  const f = R.finances(s, 'cacula', '2026-10');
+  s.children.find(c => c.id === 'leticia').base = 4000;
+  const f = R.finances(s, 'leticia', '2026-10');
   assert.equal(f.capHabits, 1200);
   assert.equal(f.capSchool, 480);
 });
@@ -118,32 +128,42 @@ test('sequência com coringa: perdoa 1 falta a cada 7 dias', () => {
 });
 
 test('níveis e nomes por faixa etária', () => {
-  assert.equal(R.levelInfo(0, 9).level, 1);
-  assert.equal(R.levelInfo(59, 9).level, 1);
-  assert.equal(R.levelInfo(60, 9).level, 2);
-  assert.match(R.levelInfo(60, 9).name, /Pintinho/);
-  assert.equal(R.levelInfo(500, 12).name, 'Estrategista');
+  assert.equal(R.levelInfo(0, 12).level, 1);
+  assert.equal(R.levelInfo(59, 12).level, 1);
+  assert.equal(R.levelInfo(60, 12).level, 2);
+  assert.equal(R.levelInfo(60, 12).name, 'Exploradora');
+  assert.equal(R.levelInfo(0, 14).name, 'Novata');
   assert.equal(R.levelInfo(5000, 14).level, 10);
   assert.equal(R.levelInfo(5000, 14).toNext, 0);
 });
 
-test('cofrinhos: gastar, poupar e doar a partir do livro-razão', () => {
+function withWallet() {
   const s = fresh();
-  assert.equal(R.jarSpend(s, 'cacula'), 1500 - 800 - 200);
-  assert.equal(R.jarSave(s, 'cacula'), 800);
-  assert.equal(R.jarGive(s, 'cacula'), 200);
-  s.ledger.push({ id: 'i', childId: 'cacula', goalId: 'goal3', type: 'interest', amount: 16 });
-  s.ledger.push({ id: 'd', childId: 'cacula', type: 'donate', amount: 100 });
-  assert.equal(R.goalSaved(s, 'goal3'), 816);
-  assert.equal(R.jarGive(s, 'cacula'), 100);
+  s.goals = [{ id: 'gl', childId: 'leticia', name: 'Kit', emoji: '🎨', target: 6000 }];
+  s.ledger = [
+    { id: 'a', childId: 'leticia', type: 'opening', amount: 1500, date: '2026-10-01', description: 'x' },
+    { id: 'b', childId: 'leticia', type: 'save', goalId: 'gl', amount: 800, date: '2026-10-02', description: 'x' },
+    { id: 'c', childId: 'leticia', type: 'give', amount: 200, date: '2026-10-02', description: 'x' }
+  ];
+  return s;
+}
+
+test('cofrinhos: gastar, poupar e doar a partir do extrato', () => {
+  const s = withWallet();
+  assert.equal(R.jarSpend(s, 'leticia'), 1500 - 800 - 200);
+  assert.equal(R.jarSave(s, 'leticia'), 800);
+  assert.equal(R.jarGive(s, 'leticia'), 200);
+  s.ledger.push({ id: 'i', childId: 'leticia', goalId: 'gl', type: 'interest', amount: 16, date: '2026-10-31' });
+  s.ledger.push({ id: 'd', childId: 'leticia', type: 'donate', amount: 100, date: '2026-10-31' });
+  assert.equal(R.goalSaved(s, 'gl'), 816);
+  assert.equal(R.jarGive(s, 'leticia'), 100);
 });
 
 test('divisão automática do pagamento', () => {
-  const s = fresh();
-  const c = s.children.find(x => x.id === 'cacula');
-  const p = R.payoutSplit(s, c, 10000);
-  assert.deepEqual(p, { save: 3000, give: 1000, spend: 6000, goalId: 'goal3' });
-  s.goals = s.goals.filter(g => g.childId !== 'cacula');
+  const s = withWallet();
+  const c = s.children.find(x => x.id === 'leticia');
+  assert.deepEqual(R.payoutSplit(s, c, 10000), { save: 2000, give: 1000, spend: 7000, goalId: 'gl' });
+  s.goals = [];
   assert.equal(R.payoutSplit(s, c, 10000).save, 0, 'sem meta aberta, nada vai para Poupar');
 });
 
@@ -163,36 +183,71 @@ test('migração da versão 1 preserva dados e protege a base', () => {
     closures: [{ id: 'z', childId: 'a', month: '2026-09', base: 10000, deduction: 600, recovered: 0, bonuses: 500, total: 9900, confirmed: 1, closed: true }]
   };
   const s = R.migrate(v1);
-  assert.equal(s.version, 2);
+  assert.equal(s.version, 3);
+  assert.equal(s.role, 'parent:igor');
   assert.equal(s.config.habitsPct, 30);
   assert.equal(s.bonuses[0].pts, 20);
   assert.equal(s.occurrences[0].polarity, 'neg');
-  assert.equal(s.tasks.length, R.DEFAULT_TASKS.length);
   assert.equal(R.finances(s, 'a', '2026-09').total, 9900, 'mês fechado mantém o valor pago');
   assert.equal(R.finances(s, 'a', '2026-10').total, 10000 + 200, 'primeira negativa do mês não desconta');
   assert.equal(R.migrate({ foo: 1 }), null);
 });
 
-test('conquistas e meta da família na semente', () => {
-  const s = fresh();
+test('migração da versão 2 tira a Caçula e os dados de exemplo e mantém o que é real', () => {
+  const v2 = {
+    version: 2, selected: 'cacula', view: 'school', role: 'parent', config: { base: 10000 },
+    children: [{ id: 'alice', name: 'Alice', age: 15 }, { id: 'leticia', name: 'Letícia', age: 14 }, { id: 'cacula', name: 'Caçula', age: 9 }],
+    grades: [{ id: 'g1', childId: 'alice', date: '2026-10-06', subject: 'Matemática', pct: 94, status: 'confirmed' },
+      { id: 'id_real', childId: 'leticia', date: '2026-10-20', subject: 'Português', pct: 96, status: 'confirmed' }],
+    occurrences: [{ id: 'oc4', childId: 'cacula', polarity: 'pos', kind: 'ajuda', date: '2026-10-08', status: 'confirmed' }],
+    checkins: [{ id: 'ck_alice_estudo_2026-10-25', childId: 'alice', taskId: 'estudo', date: '2026-10-25' }],
+    bonuses: [], goals: [{ id: 'goal1', childId: 'alice', name: 'Fone', emoji: '🎧', target: 18000 }],
+    ledger: [{ id: 'l1', childId: 'alice', type: 'opening', amount: 4200, date: '2026-10-01' },
+      { id: 'id_x', childId: 'alice', goalId: 'goal1', type: 'save', amount: 500, date: '2026-10-10' }],
+    closures: [], seenBadges: { cacula: ['doar'] }
+  };
+  const s = R.migrate(v2);
+  assert.equal(s.version, 3);
+  assert.deepEqual(s.children.map(c => [c.id, c.age]), [['alice', 14], ['leticia', 12]]);
+  assert.equal(s.selected, 'alice');
+  assert.equal(s.role, 'parent:igor');
+  assert.deepEqual(s.grades.map(g => g.id), ['id_real']);
+  assert.equal(s.occurrences.length, 0);
+  assert.equal(s.checkins.length, 0);
+  assert.equal(s.goals.length, 0);
+  assert.equal(s.ledger.length, 0, 'movimento ligado a meta de exemplo também sai');
+  assert.ok(!('cacula' in s.seenBadges));
+});
+
+test('conquistas e meta da família', () => {
+  const s = withWallet();
+  s.grades = [{ id: 'g', childId: 'leticia', date: '2026-10-20', subject: 'Português', pct: 96, status: 'confirmed' }];
+  s.occurrences = [{ id: 'o', childId: 'leticia', polarity: 'pos', kind: 'participacao', date: '2026-10-20', status: 'confirmed' }];
   const b = R.badges(s, 'leticia', TODAY);
   assert.ok(b.has('nota90'));
   assert.ok(b.has('elogio'));
-  assert.ok(R.badges(s, 'cacula', TODAY).has('doar'));
-  const fam = R.familyProgress(s, '2026-10');
-  assert.equal(fam.total, 4 + 3 + 5);
+  assert.ok(b.has('doar'));
+  assert.ok(b.has('meta1'));
+  s.checkins = [
+    { id: 'k1', childId: 'alice', taskId: 'estudo', date: '2026-10-20' },
+    { id: 'k2', childId: 'leticia', taskId: 'estudo', date: '2026-10-20' },
+    { id: 'k3', childId: 'leticia', taskId: 'cama', date: '2026-10-21' }
+  ];
+  assert.equal(R.familyProgress(s, '2026-10').total, 2);
 });
 
 test('migração saneia backup adulterado', () => {
-  const s = R.seed(TODAY);
+  const s = R.seed();
   s.children[0].color = 'red;"><script>alert(1)</script>';
   s.children.push({ id: 'x"><img src=x>', name: 'Intrusa', age: 10 });
   s.grades.push({ id: 'g9', childId: 'alice', date: TODAY, subject: '<b>Mat</b>', pct: '<img>', status: 'confirmed' });
   s.ledger.push({ id: 'l9', childId: 'alice', type: 'opening', amount: 'muito', date: TODAY });
   s.config.base = '<script>';
+  s.parents.push({ id: 'p"><x', name: 'Falso' });
   const m = R.migrate(s);
   assert.equal(m.children[0].color, '#695ce6');
-  assert.equal(m.children.length, 3);
+  assert.equal(m.children.length, 2);
+  assert.equal(m.parents.length, 2);
   assert.ok(!m.grades.some(g => g.id === 'g9'));
   assert.ok(!m.ledger.some(x => x.id === 'l9'));
   assert.equal(m.config.base, R.DEFAULT_CONFIG.base);
