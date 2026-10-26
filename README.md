@@ -1,8 +1,10 @@
 # Mesada+ Família
 
-Mesada, hábitos, escola e educação financeira para a família. Protótipo estático publicado no GitHub Pages.
+Mesada, hábitos, escola e educação financeira da família.
 
-https://cairesmachado-svg.github.io/Mesada-Plus/
+### 👉 [Abrir o app: cairesmachado-svg.github.io/Mesada-Plus](https://cairesmachado-svg.github.io/Mesada-Plus/)
+
+No celular, abra o link e use **Adicionar à tela inicial** para instalar como app.
 
 ## O que o app faz
 
