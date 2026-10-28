@@ -64,3 +64,16 @@
 .mobile-nav .nav-plus span{color:var(--purple)}
 .mobile-nav .nav-plus.active svg{background:#4e43c9}
 @media(max-width:630px){.mobile-nav button{min-width:52px;padding:5px 2px}.seg-tab{font-size:11px;padding:10px 4px}}
+
+/* Conquistas e quatro parcelas mensais */
+.week-card, .payment-card { margin-bottom: 20px; }
+.week-card { background: linear-gradient(125deg, #f0ecff, #fff); border: 1px solid #e5defa; }
+.week-invite { display: flex; gap: 15px; align-items: center; margin: 14px 0 20px; }
+.week-invite > span { font-size: 34px; }
+.week-invite h2 { font-size: 20px; margin: 0 0 7px; }
+.week-invite p { margin: 0; line-height: 1.6; color: #565b70; }
+.payment-summary { display: flex; flex-wrap: wrap; gap: 22px; padding: 14px 0; }
+.payment-summary strong { display: block; font-size: 20px; margin-top: 6px; }
+.payment-card > .section-hint { line-height: 1.6; margin-top: 14px; }
+.recognition { margin-top: 8px; padding: 9px 12px; background: #fff5d9; border-radius: 10px; color: #6a501c; line-height: 1.5; overflow-wrap: anywhere; }
+@media (max-width: 480px) { .payment-card .list-row { flex-wrap: wrap; gap: 8px; } .payment-card .list-main { min-width: 140px; } }

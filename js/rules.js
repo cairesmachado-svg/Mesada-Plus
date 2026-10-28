@@ -32,7 +32,12 @@
     { id: 'elogio', title: 'Elogio de professor' },
     { id: 'destaque', title: 'Destaque em trabalho ou prova' },
     { id: 'ajuda', title: 'Ajudou colega ou a turma' },
-    { id: 'participacao', title: 'Participação (monitoria, aula extra)' }
+    { id: 'participacao', title: 'Participação (monitoria, aula extra)' },
+    { id: 'casa', title: 'Ajudei em casa por iniciativa própria' },
+    { id: 'combinado', title: 'Cumpri um combinado importante' },
+    { id: 'cuidado', title: 'Cuidei de alguém ou resolvi um conflito' },
+    { id: 'iniciativa', title: 'Aprendi ou tentei algo novo' },
+    { id: 'outra', title: 'Outra coisa boa' }
   ];
 
   const SUBJECTS = ['Português', 'Matemática', 'Ciências', 'História', 'Geografia', 'Inglês', 'Arte',
@@ -224,7 +229,9 @@
 
   function finances(state, cid, m) {
     const child = state.children.find(c => c.id === cid);
-    const base = childBase(state, child);
+    // A primeira parcela fixa a base deste mês. Editar regras vale para o próximo.
+    const first = state.ledger.find(x => x.childId === cid && x.type === 'payout' && x.month === m && Number.isInteger(x.installment));
+    const base = first && Number.isSafeInteger(first.baseSnapshot) ? first.baseSnapshot : childBase(state, child);
     const cpp = state.config.centsPerPoint;
     const capHabits = Math.round(base * state.config.habitsPct / 100);
     const capSchool = Math.round(base * state.config.schoolPct / 100);
@@ -243,6 +250,17 @@
   }
 
   /* ---------- Cofrinhos ---------- */
+
+  // Quatro parcelas mensais: dias 7, 14, 21 e último dia. Não promete 52 semanas/ano.
+  function installmentPlan(state, cid, m) {
+    const f = finances(state, cid, m), unit = Math.floor(f.base / 4);
+    return [7, 14, 21, monthDays(m)].map((day, index) => {
+      const payment = state.ledger.find(x => x.childId === cid && x.type === 'payout' && x.month === m && x.installment === index);
+      return { index, date: dateOfDay(m, day), amount: index === 3 ? f.base - unit * 3 : unit, paid: Boolean(payment) || f.closed };
+    });
+  }
+  const advancesPaid = (state, cid, m) => state.ledger.filter(x => x.childId === cid && x.type === 'payout' && x.month === m && Number.isInteger(x.installment)).reduce((sum, x) => sum + x.amount, 0);
+  const remainingPayout = (state, cid, m) => finances(state, cid, m).closed ? 0 : Math.max(0, finances(state, cid, m).total - advancesPaid(state, cid, m));
 
   // gastar: livre · poupar: soma das metas · doar: separado para doação
   function jarSpend(state, cid) {
@@ -485,7 +503,7 @@
     const own = x => x && okId(x.id) && kids.has(x.childId) && okDate(x.date);
     s.grades = s.grades.filter(g => own(g) && Number.isFinite(g.pct) && g.pct >= 0 && g.pct <= 100)
       .map(g => ({ ...g, subject: String(g.subject || 'Outra').slice(0, 30), raw: String(g.raw ?? g.pct).slice(0, 12), status: g.status === 'pending' ? 'pending' : 'confirmed' }));
-    s.occurrences = s.occurrences.filter(own).map(o => ({ polarity: 'neg', ...o, detail: String(o.detail || '').slice(0, 300), subject: String(o.subject || '').slice(0, 30), by: String(o.by || '').slice(0, 20) }));
+    s.occurrences = s.occurrences.filter(own).map(o => ({ polarity: 'neg', ...o, detail: String(o.detail || '').slice(0, 300), subject: String(o.subject || '').slice(0, 30), by: String(o.by || '').slice(0, 20), feedback: String(o.feedback || '').slice(0, 180), feedbackBy: String(o.feedbackBy || '').slice(0, 20) }));
     s.checkins = s.checkins.filter(own).map(c => ({ ...c, month: String(c.date).slice(0, 7), week: cycleOf(c.date) }));
     s.bonuses = s.bonuses.filter(b => own(b) && Number.isSafeInteger(b.pts) && Number.isInteger(b.week));
     s.goals = s.goals.filter(g => g && okId(g.id) && kids.has(g.childId) && Number.isSafeInteger(g.target) && g.target > 0)
@@ -510,7 +528,7 @@
     DEFAULT_TASKS, DEFAULT_CONFIG, DEFAULT_SPLIT, DEFAULT_PARENTS, LEVELS, LEVEL_NAMES, BADGES, XP_GOAL_DONE,
     dateOfDay, monthDays, cycleOf, datesForCycle, addDays, daysBetween, inMonth, byDate,
     parseGrade, gradePoints, previousGrade, findKind, findPos, schoolMonth, habitsPtsMonth, childBase,
-    finances, jarSpend, jarSave, jarGive, goalSaved, interestFor, payoutSplit, futureValue,
+    finances, installmentPlan, advancesPaid, remainingPayout, jarSpend, jarSave, jarGive, goalSaved, interestFor, payoutSplit, futureValue,
     ageBand, taskHelp, xp, levelInfo, streak, badges, familyProgress, mergeTasks, seed, migrate
   };
 });

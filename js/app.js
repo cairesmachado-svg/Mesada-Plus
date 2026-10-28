@@ -205,9 +205,22 @@
     return `<div class="card">${sec(`${esc(g.emoji)} Meta da família`, 'Os dias de estudo das duas somam juntos. Ninguém compete.')}<div class="family-name">${esc(g.name)}</div><div class="seg-bar" role="img" aria-label="${fp.total} de ${fp.target} dias de estudo">${segs}</div><div class="child-foot"><span><b>${fp.total}</b> de ${fp.target} dias de estudo</span><span>${fp.done ? '<b class="good">🎉 Bateram a meta!</b>' : `faltam <b>${fp.target - fp.total}</b>`}</span></div><div class="legend">${state.children.map(c => `<span><i style="background:${c.color}"></i>${esc(c.name)}</span>`).join('')}</div></div>`;
   }
 
-  function badgesGrid(cid) {
+  function badgesGrid(cid, compact = false) {
     const got = unlockedBadges(cid);
-    return `<div class="badges">${R.BADGES.map(b => `<div class="badge ${got.has(b.id) ? 'on' : ''}"><span class="badge-ico" aria-hidden="true">${b.icon}</span><b>${esc(b.name)}</b><small>${esc(b.desc)}</small>${got.has(b.id) ? '' : '<span class="sr-only">(bloqueada)</span>'}</div>`).join('')}</div>`;
+    return `<div class="badges">${(compact ? [...R.BADGES.filter(b => got.has(b.id)), ...R.BADGES.filter(b => !got.has(b.id)).slice(0, 3)] : R.BADGES).map(b => `<div class="badge ${got.has(b.id) ? 'on' : ''}"><span class="badge-ico" aria-hidden="true">${b.icon}</span><b>${esc(b.name)}</b><small>${esc(b.desc)}</small>${got.has(b.id) ? '' : '<span class="sr-only">(bloqueada)</span>'}</div>`).join('')}</div>`;
+  }
+
+  function weeklyCard(c) {
+    const dates = R.datesForCycle(activeMonth, activeMonth === period() ? R.cycleOf(today()) : 0);
+    const rows = state.occurrences.filter(o => o.childId === c.id && o.polarity === 'pos' && o.status !== 'justified' && dates.includes(o.date)).sort((a, b) => b.date.localeCompare(a.date));
+    const pending = rows.filter(o => o.status === 'pending').length;
+    return `<section class="card week-card">${sec('Minha semana', `${fmtD(dates[0])} a ${fmtD(dates.at(-1))} · ${rows.length} boas atitudes${pending ? ` · ${pending} esperando confirmação` : ''}`)}<div class="week-invite"><span aria-hidden="true">✨</span><div><h2>Qual foi sua conquista de hoje?</h2><p>Ajudou alguém, tentou algo difícil ou cumpriu um combinado? Conta pra gente.</p></div></div><button class="btn positive block" data-act="nav" data-view="lancar" data-mode="pos">${icon('stars')} Contar coisa boa</button>${rows.length ? `<div class="list" style="margin-top:16px">${rows.slice(0, 3).map(occLine).join('')}</div>` : '<p class="section-hint" style="margin-top:16px">Sua primeira boa atitude pode ser pequena. Ela merece ser lembrada.</p>'}</section>`;
+  }
+
+  function paymentCard(c) {
+    const plan = R.installmentPlan(state, c.id, activeMonth), f = fin(c.id);
+    const next = plan.find(x => !x.paid);
+    return `<section class="card payment-card">${sec(isParent() ? `Pagamentos da ${esc(c.name)}` : 'Minha mesada', 'Quatro parcelas por mês: dias 7, 14, 21 e último dia. A última pode durar mais de uma semana.')}<div class="payment-summary"><div><span class="small-label">BASE PREVISTA NO MÊS</span><strong>${money(f.base)}</strong></div><div><span class="small-label">${next ? 'PRÓXIMA PARCELA' : 'BASE LIBERADA'}</span><strong>${next ? `${money(next.amount)} · ${fmtD(next.date)}` : money(f.base)}</strong></div></div><div class="list">${plan.map(x => `<div class="list-row"><div class="list-main"><div class="list-name">Parcela ${x.index + 1} · ${fmtD(x.date)}</div><div class="list-meta">${x.paid ? 'Liberada nos cofrinhos' : x.date <= today() ? 'Aguardando liberação dos pais' : 'Prevista'}</div></div><b>${money(x.amount)}</b>${isParent() && !x.paid ? `<button class="btn soft small" data-act="pay-installment" data-child="${c.id}" data-index="${x.index}" ${x.date > today() ? 'disabled' : ''}>Liberar</button>` : ''}</div>`).join('')}</div><p class="section-hint">Bônus líquido do mês: ${money(f.bonusCents)}. Entra no fechamento; parcelas já liberadas não são pagas de novo. Os registros são virtuais: o pagamento real é combinado com os pais.</p></section>`;
   }
 
   function pendingList(limit = 6) {
@@ -222,9 +235,10 @@
     if (!isParent()) return renderChildHome(viewChildren()[0]);
     const fins = state.children.map(c => fin(c.id)), sum = k => fins.reduce((a, f) => a + (f[k] || 0), 0);
     return `${header('PAINEL', `Oi, ${esc(parentName())}! 👋`, 'A base é garantida. Hábito e escola dão bônus. Ocorrência começa com conversa.')}
-    <div class="grid two sm-stack"><div class="card hero"><div class="welcome"><div><div class="hero-upper">MESADAS DO MÊS</div><div class="hero-number">${money(sum('total'))}</div><div class="hero-caption">${esc(monthLabel(activeMonth))} · fecha no fim do mês</div></div><div class="welcome-illustration" aria-hidden="true">🪙</div></div><div class="hero-line"><div><b>${money(sum('base'))}</b><span>Base</span></div><div><b>+ ${money(sum('habitsCents') + sum('schoolCents'))}</b><span>Bônus</span></div><div><b>− ${money(Math.min(sum('penaltyCents'), sum('habitsCents') + sum('schoolCents')))}</b><span>Ajustes</span></div></div></div>
+    <div class="grid two sm-stack"><div class="card hero"><div class="welcome"><div><div class="hero-upper">TOTAL DAS DUAS NO MÊS</div><div class="hero-number">${money(sum('total'))}</div><div class="hero-caption">${esc(monthLabel(activeMonth))} · base em quatro parcelas; bônus no fechamento</div></div><div class="welcome-illustration" aria-hidden="true">🪙</div></div><div class="hero-line"><div><b>${money(sum('base'))}</b><span>Base</span></div><div><b>+ ${money(sum('habitsCents') + sum('schoolCents'))}</b><span>Bônus</span></div><div><b>− ${money(Math.min(sum('penaltyCents'), sum('habitsCents') + sum('schoolCents')))}</b><span>Ajustes</span></div></div></div>
     <div class="grid two metrics-mobile"><div class="card metric"><div class="metric-head">HÁBITOS <span class="metric-icon bg-purple purple">${icon('routine')}</span></div><div class="metric-number purple">+ ${money(sum('habitsCents'))}</div><div class="metric-sub">Estudo, casa e rotina</div></div><div class="card metric"><div class="metric-head">ESCOLA <span class="metric-icon bg-good good">${icon('stars')}</span></div><div class="metric-number good">+ ${money(sum('schoolCents'))}</div><div class="metric-sub">Notas e coisas boas</div></div><div class="card metric"><div class="metric-head">COFRINHOS <span class="metric-icon bg-gold gold">${icon('pig')}</span></div><div class="metric-number">${money(state.children.reduce((a, c) => a + R.jarSave(state, c.id) + R.jarGive(state, c.id), 0))}</div><div class="metric-sub">Guardado e pra doar</div></div><div class="card metric" data-act="nav" data-view="school" role="button" tabindex="0" style="cursor:pointer"><div class="metric-head">PRA REVISAR <span class="metric-icon bg-bad bad">${icon('clock')}</span></div><div class="metric-number">${pendingCount()}</div><div class="metric-sub">O que as meninas mandaram</div></div></div></div>
     <div class="quick-row"><button class="btn" data-act="nav" data-view="lancar" data-mode="pos">${icon('stars')} Coisa boa</button><button class="btn secondary" data-act="nav" data-view="lancar" data-mode="neg">${icon('chat')} Pra conversar</button><button class="btn secondary" data-act="nav" data-view="lancar" data-mode="nota">${icon('book')} Nota</button></div>
+    ${paymentCard(currentChild())}
     ${sec('As meninas', 'Toque pra ver os detalhes de cada uma.')}
     <div class="grid ${state.children.length >= 3 ? 'three' : 'two'}">${state.children.map(childCard).join('')}</div>
     <div class="grid two sm-stack" style="margin-top:24px">${familyCard()}<div class="card">${sec('Pra revisar', 'Nada vira ponto sem vocês.', `<button class="link-btn" data-act="nav" data-view="school">Escola ${icon('arrow', 14)}</button>`)}${pendingList()}</div></div>
@@ -241,13 +255,15 @@
   function renderChildHome(c) {
     if (!c) return '';
     const f = fin(c.id), lv = level(c), st = R.streak(state, c.id, today()), goals = state.goals.filter(g => g.childId === c.id && !g.done).slice(0, 3);
-    return `${header('MEU ESPAÇO', `E aí, ${esc(c.name)}! ✨`, 'Seu nível, sua grana e suas metas.')}
+    return `${header('MEU ESPAÇO', `E aí, ${esc(c.name)}! ✨`, 'Suas conquistas, sua grana e seus sonhos.')}
+    ${weeklyCard(c)}
+    ${paymentCard(c)}
     <div class="grid two sm-stack"><div class="card hero level-hero"><div class="welcome"><div><div class="hero-upper">NÍVEL ${lv.level}</div><div class="hero-number">${esc(levelText(lv))}</div><div class="hero-caption">${lv.next ? `Faltam ${lv.toNext} XP pro nível ${lv.level + 1}` : 'Nível máximo. Lendária!'}</div></div><div class="welcome-illustration" aria-hidden="true">${mascot(lv)}</div></div><div class="xp-bar light"><span style="width:${lv.progress}%"></span></div><div class="hero-line"><div><b>🔥 ${st} ${st === 1 ? 'dia' : 'dias'}</b><span>Sequência</span></div><div><b>${lv.xp} XP</b><span>Esforço</span></div><div><b>🏅 ${unlockedBadges(c.id).size}/${R.BADGES.length}</b><span>Conquistas</span></div></div></div>
-    <div class="grid two metrics-mobile"><div class="card metric"><div class="metric-head">MESADA DO MÊS <span class="metric-icon bg-purple purple">${icon('coin')}</span></div><div class="metric-number">${money(f.total)}</div><div class="metric-sub">Base de ${money(f.base)} garantida</div></div><div class="card metric"><div class="metric-head">BÔNUS <span class="metric-icon bg-good good">${icon('stars')}</span></div><div class="metric-number good">+ ${money(f.bonusCents)}</div><div class="metric-sub">Hábitos ${money(f.habitsCents)} · Escola ${money(f.schoolCents)}</div></div><div class="card metric"><div class="metric-head">PRA GASTAR <span class="metric-icon bg-gold gold">${icon('bag')}</span></div><div class="metric-number">${money(R.jarSpend(state, c.id))}</div><div class="metric-sub">Livre</div></div><div class="card metric"><div class="metric-head">GUARDADO <span class="metric-icon bg-good good">${icon('pig')}</span></div><div class="metric-number">${money(R.jarSave(state, c.id))}</div><div class="metric-sub">Nas suas metas</div></div></div></div>
-    ${can.submit(c.id) ? `<div class="quick-row"><button class="btn" data-act="nav" data-view="lancar" data-mode="nota">${icon('book')} Mandar nota</button><button class="btn secondary" data-act="nav" data-view="lancar" data-mode="pos">${icon('stars')} Contar coisa boa</button></div>` : ''}
+    <div class="grid two metrics-mobile"><div class="card metric"><div class="metric-head">PREVISTO NO MÊS <span class="metric-icon bg-purple purple">${icon('coin')}</span></div><div class="metric-number">${money(f.total)}</div><div class="metric-sub">Base de ${money(f.base)} garantida</div></div><div class="card metric"><div class="metric-head">BÔNUS <span class="metric-icon bg-good good">${icon('stars')}</span></div><div class="metric-number good">+ ${money(f.bonusCents)}</div><div class="metric-sub">Hábitos ${money(f.habitsCents)} · Escola ${money(f.schoolCents)}</div></div><div class="card metric"><div class="metric-head">SALDO LIBERADO <span class="metric-icon bg-gold gold">${icon('bag')}</span></div><div class="metric-number">${money(R.jarSpend(state, c.id))}</div><div class="metric-sub">Disponível após liberações e gastos</div></div><div class="card metric"><div class="metric-head">GUARDADO <span class="metric-icon bg-good good">${icon('pig')}</span></div><div class="metric-number">${money(R.jarSave(state, c.id))}</div><div class="metric-sub">Nas suas metas</div></div></div></div>
+    ${can.submit(c.id) ? `<div class="quick-row"><button class="btn" data-act="nav" data-view="lancar" data-mode="nota">${icon('book')} Mandar nota</button><button class="btn secondary" data-act="nav" data-view="routine">${icon('routine')} Minha rotina</button></div>` : ''}
     ${sec('Minhas metas', 'Escolhe um sonho e vê a barra encher.', `<button class="link-btn" data-act="nav" data-view="wallet">Cofrinhos ${icon('arrow', 14)}</button>`)}
     <div class="grid ${goals.length > 1 ? 'two' : ''}">${goals.map(goalCard).join('') || `<div class="card empty"><div class="empty-icon">🎯</div>Ainda sem meta. Cria a primeira em Cofrinhos.</div>`}</div>
-    ${sec('Minhas conquistas', 'Ganhou, é sua. Não some.')}${badgesGrid(c.id)}
+    ${sec('Minhas conquistas', 'Suas conquistas e três próximos passos. Ganhou, é sua.')}${badgesGrid(c.id, true)}
     <div class="grid two sm-stack" style="margin-top:24px">${familyCard()}<div class="card"><div class="tip-card"><span style="font-size:30px" aria-hidden="true">💡</span><div><h2 class="section-title" style="margin-bottom:6px">Dica do dia</h2><div class="list-meta" style="font-size:13px">${esc(pick(TIPS[lv.band], Number(today().slice(8))))}</div></div></div></div></div>`;
   }
 
@@ -276,13 +292,14 @@
   function occLine(o) {
     const c = getChild(o.childId), e = occEffect(o), pos = o.polarity === 'pos';
     const extra = [o.subject, o.detail].filter(Boolean).map(esc).join(' · ');
-    return `<div class="list-row"><div class="event-ico ${pos ? 'bg-good good' : 'bg-gold gold'}">${icon(pos ? 'stars' : 'chat')}</div><div class="list-main"><div class="list-name">${esc(occTitle(o))}</div><div class="list-meta">${esc(c.name)} · ${fmtD(o.date)}${extra ? ` · ${extra}` : ''}${byLine(o)}</div></div><div style="text-align:right"><div class="list-price ${e.cls}">${e.text}</div>${occActions(o)}</div></div>`;
+    return `<div class="list-row"><div class="event-ico ${pos ? 'bg-good good' : 'bg-gold gold'}">${icon(pos ? 'stars' : 'chat')}</div><div class="list-main"><div class="list-name">${esc(occTitle(o))}</div><div class="list-meta">${esc(c.name)} · ${fmtD(o.date)}${extra ? ` · ${extra}` : ''}${byLine(o)}</div>${o.feedback ? `<div class="recognition">💛 ${esc(o.feedback)}<small> — ${esc(o.feedbackBy || 'Seus pais')}</small></div>` : ''}</div><div style="text-align:right"><div class="list-price ${e.cls}">${e.text}</div>${occActions(o)}</div></div>`;
   }
   function occActions(o) {
     const pill = `<span class="pill ${o.status === 'pending' ? 'pending' : o.status === 'confirmed' ? (o.polarity === 'pos' ? 'justified' : 'confirmed') : 'restored'}">${o.status === 'pending' ? 'Esperando' : o.status === 'confirmed' ? (o.recovered ? 'Corrigiu' : 'Valendo') : 'Anulada'}</span>`;
     if (!isParent()) return pill;
     if (monthClosed(o.childId, o.date.slice(0, 7))) return '<span class="pill justified">Mês fechado</span>';
     const b = [];
+    if (o.polarity === 'pos' && o.status === 'confirmed') b.push(`<button class="btn soft small" data-act="modal-feedback" data-id="${o.id}">💛 ${o.feedback ? 'Editar mensagem' : 'Reconhecer'}</button>`);
     if (o.status === 'pending') {
       b.push(o.kind === 'classificar' ? `<button class="btn positive small" data-act="modal-classify" data-id="${o.id}">Classificar</button>` : `<button class="btn positive small" data-act="approve" data-id="${o.id}">Aprovar</button>`);
       b.push(`<button class="btn secondary small" data-act="excuse" data-id="${o.id}">Anular</button>`);
@@ -320,7 +337,7 @@
     ${sec('Quanto vale', 'Ponto pequeno e frequente funciona melhor que prêmio grande e raro.')}
     <div class="grid two">
       <div class="card tight"><div class="small-label">NOTAS</div><div class="list">${R.GRADE_TIERS.map(t => `<div class="list-row"><div class="list-main"><div class="list-name">${t.label}</div></div><b class="good">+${pts(t.pts)}</b></div>`).join('')}<div class="list-row"><div class="list-main"><div class="list-name">Subiu ${R.IMPROVE.delta} pontos na mesma matéria</div><div class="list-meta">Até ${R.IMPROVE.maxMonth} por mês. Vale mesmo abaixo de 90%.</div></div><b class="good">+${pts(R.IMPROVE.pts)}</b></div></div></div>
-      <div class="card tight"><div class="small-label">OCORRÊNCIAS</div><div class="list"><div class="list-row"><div class="list-main"><div class="list-name">Coisa boa</div><div class="list-meta">Elogio, destaque, ajuda ou monitoria. Até ${R.POSITIVE.maxMonth} por mês.</div></div><b class="good">+${pts(R.POSITIVE.pts)}</b></div><div class="list-row"><div class="list-main"><div class="list-name">Primeira pra conversar no mês</div><div class="list-meta">Conversa e combinado. Sem desconto.</div></div><b class="purple">0</b></div><div class="list-row"><div class="list-main"><div class="list-name">Da segunda em diante</div><div class="list-meta">Nível × ${R.NEGATIVE.ptsPerLevel} pts, só no bônus. Nível 1 a 3: se corrigir, cai pela metade.</div></div><b class="bad">−5 a −30</b></div></div></div>
+      <div class="card tight"><div class="small-label">OCORRÊNCIAS</div><div class="list"><div class="list-row"><div class="list-main"><div class="list-name">Coisa boa</div><div class="list-meta">Escola, casa, cuidado e iniciativa. Até ${R.POSITIVE.maxMonth} por mês.</div></div><b class="good">+${pts(R.POSITIVE.pts)}</b></div><div class="list-row"><div class="list-main"><div class="list-name">Primeira pra conversar no mês</div><div class="list-meta">Conversa e combinado. Sem desconto.</div></div><b class="purple">0</b></div><div class="list-row"><div class="list-main"><div class="list-name">Da segunda em diante</div><div class="list-meta">Nível × ${R.NEGATIVE.ptsPerLevel} pts, só no bônus. Nível 1 a 3: se corrigir, cai pela metade.</div></div><b class="bad">−5 a −30</b></div></div></div>
     </div>
     <div class="grid two" style="margin-top:17px">${R.NEG_KINDS.map(k => `<div class="card tight"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div><div class="small-label">NÍVEL ${k.level}</div><b style="font-size:13px">${esc(k.title)}</b></div><b class="bad" style="white-space:nowrap">−${pts(k.level * R.NEGATIVE.ptsPerLevel)}</b></div><div class="list-meta">${esc(k.summary)}</div></div>`).join('')}</div>`;
   }
@@ -339,7 +356,7 @@
   function lancarModes() {
     return isParent()
       ? [['pos', '⭐ Coisa boa'], ['neg', '💬 Pra conversar'], ['nota', '📊 Nota']]
-      : [['nota', '📊 Nota'], ['pos', '⭐ Coisa boa']];
+      : [['pos', '⭐ Coisa boa'], ['nota', '📊 Nota']];
   }
   const subjectOptions = (required, sel = '') => `${required ? '' : '<option value="">Sem matéria</option>'}${R.SUBJECTS.map(s => `<option ${s === sel ? 'selected' : ''}>${s}</option>`).join('')}`;
 
@@ -371,7 +388,7 @@
     const dateField = `<div class="form-field"><label for="fl-date">Quando?</label><input id="fl-date" name="date" type="date" min="${R.addDays(today(), -60)}" max="${today()}" value="${today()}" required /></div>`;
     let fields = '';
     if (mode === 'pos') {
-      fields = `<div class="form-field"><label for="fl-kind">O que rolou?</label><select id="fl-kind" name="kind">${R.POS_KINDS.map(k => `<option value="${k.id}">${esc(k.title)}</option>`).join('')}</select></div><div class="rules-grid"><div class="form-field"><label for="fl-subject">Matéria</label><select id="fl-subject" name="subject">${subjectOptions(false)}</select></div>${dateField}</div><div class="form-field"><label for="fl-detail">Detalhe (opcional)</label><input id="fl-detail" name="detail" type="text" maxlength="120" placeholder="Ex.: apresentou o trabalho de ciências" /></div>`;
+      fields = `<div class="form-field"><label for="fl-kind">O que rolou?</label><select id="fl-kind" name="kind">${R.POS_KINDS.map(k => `<option value="${k.id}">${esc(k.title)}</option>`).join('')}</select></div><div class="rules-grid"><div class="form-field"><label for="fl-subject">Matéria</label><select id="fl-subject" name="subject">${subjectOptions(false)}</select></div>${dateField}</div><div class="form-field"><label for="fl-detail">Detalhe (opcional)</label><input id="fl-detail" name="detail" type="text" maxlength="120" placeholder="Ex.: ajudei em casa sem ninguém pedir" /></div>`;
     } else if (mode === 'neg') {
       fields = `<div class="form-field"><label for="fl-kind">O que rolou?</label><select id="fl-kind" name="kind">${R.NEG_KINDS.map(k => `<option value="${k.id}">Nível ${k.level} · ${esc(k.title)}</option>`).join('')}</select></div><div class="rules-grid"><div class="form-field"><label for="fl-subject">Matéria</label><select id="fl-subject" name="subject">${subjectOptions(false)}</select></div>${dateField}</div><div class="form-field"><label for="fl-detail">Detalhe (opcional)</label><input id="fl-detail" name="detail" type="text" maxlength="120" placeholder="Ex.: esqueceu o livro de geografia" /></div>`;
     } else {
@@ -381,9 +398,10 @@
       ...state.grades.filter(g => kids.some(c => c.id === g.childId)).map(g => ({ date: g.date, html: gradeLine(g) })),
       ...state.occurrences.filter(o => kids.some(c => c.id === o.childId)).map(o => ({ date: o.date, html: occLine(o) }))
     ].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 12);
-    return `${header('LANÇAR', parent ? 'O que rolou na escola?' : 'Conta pra gente!', parent ? 'Lança em segundos. Coisa boa vira ponto na hora.' : 'Mandou bem? Lança aqui. Seus pais confirmam e o ponto entra.', '<span></span>')}
+    return `${header('LANÇAR', parent ? 'Registrar atitude ou nota' : 'Conta pra gente!', parent ? 'Lança em segundos. Coisa boa vira ponto na hora.' : 'Mandou bem? Lança aqui. Seus pais confirmam e o ponto entra.', '<span></span>')}
     <div class="card lancar-card"><div class="seg-tabs" role="tablist">${modes.map(([k, l]) => `<button role="tab" aria-selected="${k === mode}" class="seg-tab ${k === mode ? 'active' : ''} seg-${k}" data-act="lancar-mode" data-mode="${k}">${l}</button>`).join('')}</div>
-    <form id="form-lancar"><input type="hidden" name="mode" value="${mode}" />${childField}${fields}<div id="lancar-preview" class="grade-preview" aria-live="polite">${esc(lancarPreview(mode, sel))}</div><button class="btn block ${mode === 'pos' ? 'positive' : ''}" type="submit">${icon('check')} ${parent ? 'Lançar' : 'Mandar pros meus pais'}</button></form>
+    <form id="form-lancar"><input type="hidden" name="mode" value="${mode}" />${childField}${fields}<div id="lancar-preview" class="grade-preview" aria-live="polite">${esc(lancarPreview(mode, sel))}</div><button class="btn block ${mode === 'pos' ? 'positive' : ''}" type="submit">${icon('check')} ${parent ? 'Lançar' : 'Registrar para meus pais'}</button></form>
+    ${!parent ? '<p class="section-hint" style="margin-top:12px">Por enquanto, seus pais precisam abrir este mesmo navegador para revisar. Não há envio entre aparelhos.</p>' : ''}
     ${mode === 'neg' ? '<div class="list-meta" style="margin-top:12px">A ideia é conversar primeiro. O desconto só sai do bônus, nunca da mesada base.</div>' : ''}</div>
     ${sec('Últimos lançamentos', parent ? 'Errou? Anula ou apaga aqui mesmo.' : 'O que você mandou e o que já está valendo.')}
     <div class="card">${recent.length ? `<div class="list">${recent.map(r => r.html).join('')}</div>` : `<div class="empty"><div class="empty-icon">🗒️</div>Nada lançado ainda.</div>`}</div>`;
@@ -436,24 +454,25 @@
     const spend = R.jarSpend(state, c.id), saveJ = R.jarSave(state, c.id), give = R.jarGive(state, c.id);
     const goals = state.goals.filter(g => g.childId === c.id), active = goals.filter(g => !g.done), done = goals.filter(g => g.done);
     const split = { ...R.DEFAULT_SPLIT, ...c.split }, closed = monthClosed(c.id);
-    const preview = R.payoutSplit(state, c, f.total);
+    const remaining = R.remainingPayout(state, c.id, activeMonth), preview = R.payoutSplit(state, c, remaining);
     const ledger = state.ledger.filter(l => l.childId === c.id).sort((a, b) => b.date.localeCompare(a.date) || 0).slice(0, 12);
     const LABEL = { opening: 'Entrada', payout: 'Mesada', save: 'Gastar → Poupar', unsave: 'Poupar → Gastar', spend: 'Gasto', give: 'Gastar → Doar', donate: 'Doação', interest: 'Juros do pai', redeem: 'Sonho realizado' };
     const CREDIT = ['opening', 'payout', 'unsave', 'interest'];
     return `${header('DINHEIRO', 'Minha grana, minhas escolhas', 'Gastar, guardar e doar. Cada real com um destino.')}${childPicker()}
+    ${paymentCard(c)}
     <div class="grid three" style="margin-top:20px">
       <div class="card jar"><div class="jar-top"><span class="jar-emoji" aria-hidden="true">🛍️</span><span class="small-label">GASTAR</span></div><div class="jar-value">${money(spend)}</div><div class="list-meta">Livre pra usar. Pensa antes.</div><div class="jar-actions">${parent ? `<button class="btn secondary small" data-act="modal-spend">${icon('bag')} Registrar gasto</button>` : ''}${mine ? `<button class="btn soft small" data-act="modal-give" ${spend > 0 ? '' : 'disabled'}>${icon('heart')} Separar pra doar</button>` : ''}</div></div>
       <div class="card jar"><div class="jar-top"><span class="jar-emoji" aria-hidden="true">🐷</span><span class="small-label">POUPAR</span></div><div class="jar-value good">${money(saveJ)}</div><div class="list-meta">Guardado nas metas${state.config.interestPct ? `, rendendo ${state.config.interestPct}% ao mês` : ''}.</div><div class="jar-actions">${can.createGoal(c.id) ? `<button class="btn soft small" data-act="modal-goal">${icon('plus')} Nova meta</button>` : ''}</div></div>
       <div class="card jar"><div class="jar-top"><span class="jar-emoji" aria-hidden="true">💛</span><span class="small-label">DOAR</span></div><div class="jar-value gold">${money(give)}</div><div class="list-meta">Pra uma causa que a ${esc(c.name)} escolher.</div><div class="jar-actions">${parent ? `<button class="btn secondary small" data-act="modal-donate" ${give > 0 ? '' : 'disabled'}>${icon('heart')} Registrar doação</button>` : ''}</div></div>
     </div>
-    <div class="hint-box" style="margin-top:17px"><b>Quando a mesada cai:</b> ${split.save}% vai pra Poupar, ${split.give}% pra Doar e o resto pra Gastar. ${closed ? `<br>${esc(monthLabel(activeMonth))} já fechou.` : `<br>Previsão de ${esc(monthLabel(activeMonth))}: ${money(f.total)} → Gastar ${money(preview.spend)} · Poupar ${money(preview.save)} · Doar ${money(preview.give)}.${preview.goalId ? '' : ' Sem meta aberta, a parte de Poupar fica em Gastar.'}`}${parent ? ` <button class="btn soft small" style="margin-left:6px" data-act="modal-edit-child" data-id="${c.id}">${icon('edit')} Mudar divisão</button>` : ''}</div>
+    <div class="hint-box" style="margin-top:17px"><b>Quando a mesada cai:</b> ${split.save}% vai pra Poupar, ${split.give}% pra Doar e o resto pra Gastar. ${closed ? `<br>${esc(monthLabel(activeMonth))} já fechou.` : `<br>Ainda a liberar em ${esc(monthLabel(activeMonth))}: ${money(remaining)} → Gastar ${money(preview.spend)} · Poupar ${money(preview.save)} · Doar ${money(preview.give)}.${preview.goalId ? '' : ' Sem meta aberta, a parte de Poupar fica em Gastar.'}`}${parent ? ` <button class="btn soft small" style="margin-left:6px" data-act="modal-edit-child" data-id="${c.id}">${icon('edit')} Mudar divisão</button>` : ''}</div>
     ${sec('Metas', 'Guardar é dar tempo pro sonho.')}
     <div class="grid two">${active.map(goalCard).join('') || `<div class="card empty"><div class="empty-icon">🎯</div>Nenhuma meta ainda.${can.createGoal(c.id) ? ' Cria uma no cofrinho Poupar.' : ''}</div>`}</div>
     ${done.length ? `${sec('Sonhos realizados', '')}<div class="grid two">${done.map(goalCard).join('')}</div>` : ''}
     ${c.age >= 12 ? simulatorCard() : ''}
     ${sec('Extrato', 'Tudo fica registrado. O saldo é a soma do extrato.')}
-    <div class="card"><div class="list">${ledger.map(x => { const credit = CREDIT.includes(x.type); return `<div class="list-row"><div class="event-ico ${credit ? 'bg-good good' : 'bg-purple purple'}">${icon(credit ? 'coin' : x.type === 'give' || x.type === 'donate' ? 'heart' : 'wallet')}</div><div class="list-main"><div class="list-name">${esc(x.description)}</div><div class="list-meta">${fmtD(x.date)} · ${LABEL[x.type] || x.type}</div></div><b class="${credit ? 'good' : 'purple'}">${credit ? '+' : '−'}${money(x.amount)}</b></div>`; }).join('') || '<div class="empty">Nada no extrato ainda. A mesada entra quando o mês fechar.</div>'}</div></div>
-    ${parent ? `<div class="hint-box" style="margin-top:20px"><b>Fechar ${esc(monthLabel(activeMonth))}:</b> credita a mesada, divide nos cofrinhos e paga os juros. ${closed ? 'Já fechado.' : `<button class="btn soft small" style="margin-left:8px" data-act="close-month">${icon('lock')} Fechar mês da ${esc(c.name)}</button>`}</div>` : ''}`;
+    <div class="card"><div class="list">${ledger.map(x => { const credit = CREDIT.includes(x.type); return `<div class="list-row"><div class="event-ico ${credit ? 'bg-good good' : 'bg-purple purple'}">${icon(credit ? 'coin' : x.type === 'give' || x.type === 'donate' ? 'heart' : 'wallet')}</div><div class="list-main"><div class="list-name">${esc(x.description)}</div><div class="list-meta">${fmtD(x.date)} · ${LABEL[x.type] || x.type}</div></div><b class="${credit ? 'good' : 'purple'}">${credit ? '+' : '−'}${money(x.amount)}</b></div>`; }).join('') || '<div class="empty">Nada no extrato ainda. A mesada entra quando seus pais liberarem uma parcela.</div>'}</div></div>
+    ${parent ? `<div class="hint-box" style="margin-top:20px"><b>Fechar ${esc(monthLabel(activeMonth))}:</b> credita somente o restante, divide nos cofrinhos e paga os juros. ${closed ? 'Já fechado.' : `<button class="btn soft small" style="margin-left:8px" data-act="close-month">${icon('lock')} Fechar mês da ${esc(c.name)}</button>`}</div>` : ''}`;
   }
 
   function simulatorCard() {
@@ -472,14 +491,14 @@
     const monthHab = weekPts * 4 * c.centsPerPoint, capHab = Math.round(c.base * c.habitsPct / 100), capSch = Math.round(c.base * c.schoolPct / 100);
     return `${header('REGRAS', 'Combinados da casa', `Todo mundo vê. Só ${esc(parentsLabel())} mudam.`, '<span></span>')}
     <form id="settings">
-    <div class="grid two sm-stack"><div class="card"><h2 class="section-title" style="margin-bottom:7px">Valores</h2><p class="section-hint">Valem pros meses ainda abertos.</p><div class="rules-grid" style="margin-top:18px">${[
-      ['base', 'Mesada base de cada uma (R$)', Math.round(c.base / 100), 'min="0" max="999" step="1"'],
+    <div class="grid two sm-stack"><div class="card"><h2 class="section-title" style="margin-bottom:7px">Valores</h2><p class="section-hint">Base mensal dividida em quatro parcelas. Após a primeira liberação, a base daquele mês fica preservada.</p><div class="rules-grid" style="margin-top:18px">${[
+      ['base', 'Mesada base mensal de cada uma (R$)', Math.round(c.base / 100), 'min="0" max="999" step="1"'],
       ['habitsPct', 'Teto de hábitos (% da base)', c.habitsPct, 'min="0" max="100" step="1"'],
       ['schoolPct', 'Teto da escola (% da base)', c.schoolPct, 'min="0" max="100" step="1"'],
       ['centsPerPoint', 'Quanto vale 1 ponto (centavos)', c.centsPerPoint, 'min="1" max="100" step="1"'],
       ['interestPct', 'Juros do pai (% ao mês)', c.interestPct, 'min="0" max="10" step="0.5"']
     ].map(([k, l, v, o]) => `<div class="rule-field"><label for="cfg-${k}">${l}</label><input id="cfg-${k}" name="${k}" type="number" ${o} value="${v}" ${dis} /></div>`).join('')}</div>
-    <div class="hint-box" style="margin-top:16px">Com ${money(c.base)} de base: hábitos dão até <strong>${money(capHab)}</strong> e escola até <strong>${money(capSch)}</strong> por mês.</div></div>
+    <p class="section-hint" style="margin-top:12px">R$ 200 mensais = quatro parcelas de R$ 50. Não é um pagamento a cada sete dias durante todo o ano.</p>${parent ? '<button type="button" class="btn soft small" data-act="preset-200">Preencher base de R$ 200</button>' : ''}<div class="hint-box" style="margin-top:16px">Com ${money(c.base)} de base: hábitos dão até <strong>${money(capHab)}</strong> e escola até <strong>${money(capSch)}</strong> por mês.</div></div>
     <div class="card"><h2 class="section-title" style="margin-bottom:7px">Hábitos e pontos</h2><p class="section-hint">Quatro semanas completas dão ${money(monthHab)}${monthHab === capHab ? ', bem no teto' : monthHab > capHab ? `, acima do teto de ${money(capHab)}` : `, abaixo do teto de ${money(capHab)}`}.</p><div class="tablewrap" style="margin-top:12px"><table class="data-table tasks-table"><thead><tr><th>Ativo</th><th>Hábito</th><th>Dias</th><th>Pontos</th></tr></thead><tbody>${state.tasks.map(t => `<tr><td><input type="checkbox" name="active-${t.id}" ${t.active ? 'checked' : ''} ${dis} aria-label="Ativar ${esc(t.name)}" /></td><td><b>${esc(t.name)}</b></td><td><input class="field" type="number" name="target-${t.id}" min="1" max="7" value="${t.target}" ${dis} aria-label="Dias por semana" /></td><td><input class="field" type="number" name="pts-${t.id}" min="0" max="200" value="${t.pts}" ${dis} aria-label="Pontos" /></td></tr>`).join('')}</tbody></table></div></div></div>
     <div class="grid two sm-stack" style="margin-top:17px"><div class="card"><h2 class="section-title" style="margin-bottom:7px">Meta da família</h2><p class="section-hint">Soma os dias de estudo das duas no mês.</p><div class="rules-grid" style="margin-top:16px"><div class="rule-field"><label for="cfg-fg-name">Prêmio</label><input id="cfg-fg-name" name="fgName" type="text" maxlength="40" value="${esc(c.familyGoal.name)}" ${dis} /></div><div class="rule-field"><label for="cfg-fg-emoji">Ícone</label><input id="cfg-fg-emoji" name="fgEmoji" type="text" maxlength="4" value="${esc(c.familyGoal.emoji)}" ${dis} /></div><div class="rule-field"><label for="cfg-fg-target">Dias de estudo somados</label><input id="cfg-fg-target" name="fgTarget" type="number" min="1" max="300" value="${c.familyGoal.target}" ${dis} /></div></div></div>
     <div class="card"><h2 class="section-title" style="margin-bottom:15px">Por que é assim</h2><div class="list">${[
@@ -508,9 +527,12 @@
   const childOptions = (sel = state.selected) => state.children.map(c => `<option value="${c.id}" ${c.id === sel ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
 
   function openModal(which, id = '') {
-    const parentOnly = ['child', 'edit-child', 'spend', 'donate', 'classify'];
+    const parentOnly = ['feedback', 'child', 'edit-child', 'spend', 'donate', 'classify'];
     if (parentOnly.includes(which) && !isParent()) return notify('Só seus pais podem fazer isso.');
-    if (which === 'classify') {
+    if (which === 'feedback') {
+      const o = state.occurrences.find(x => x.id === id); if (!o || o.polarity !== 'pos') return;
+      shellModal('Reconhecer a conquista', `Uma mensagem para ${getChild(o.childId).name}, dizendo o que vocês valorizaram.`, `<input type="hidden" name="id" value="${o.id}" />${input('feedback', 'Mensagem', `type="text" maxlength="180" value="${esc(o.feedback || '')}" placeholder="Gostei da sua iniciativa ao ajudar..." required`)}`, 'Salvar reconhecimento', 'form-feedback');
+    } else if (which === 'classify') {
       const o = state.occurrences.find(x => x.id === id); if (!o) return;
       shellModal('Classificar', `${getChild(o.childId).name} · ${fmtD(o.date)}. Veio do e-mail da escola. Confere e escolhe o tipo.`, `<input type="hidden" name="id" value="${o.id}" /><div class="form-field"><label for="fm-kind">Tipo</label><select id="fm-kind" name="kind"><optgroup label="Coisa boa">${R.POS_KINDS.map(k => `<option value="pos:${k.id}">${esc(k.title)}</option>`).join('')}</optgroup><optgroup label="Pra conversar">${R.NEG_KINDS.map(k => `<option value="neg:${k.id}" ${k.level === 1 ? 'selected' : ''}>Nível ${k.level} · ${esc(k.title)}</option>`).join('')}</optgroup></select></div>`, 'Classificar e aprovar', 'form-classify');
     } else if (which === 'child') {
@@ -603,19 +625,34 @@
     g.done = d; save(); render(); celebrate(`🏆 ${getChild(g.childId).name} realizou o sonho: ${g.name}!`); checkProgress();
   }
 
+  function releaseInstallment(cid, index) {
+    if (!isParent() || monthClosed(cid)) return;
+    const item = R.installmentPlan(state, cid, activeMonth)[index];
+    if (!item || item.paid || item.date > today() || item.amount <= 0) return;
+    const c = getChild(cid), f = fin(cid), split = R.payoutSplit(state, c, item.amount);
+    if (!confirm(`Liberar a parcela ${index + 1} da ${c.name}: ${money(item.amount)}?\n\nGastar ${money(split.spend)} · Poupar ${money(split.save)} · Doar ${money(split.give)}\nRegistro virtual; não faz transferência bancária.`)) return;
+    // Reconsulta após confirmação: impede creditar duas vezes a mesma parcela.
+    if (R.installmentPlan(state, cid, activeMonth)[index].paid) return;
+    const date = today();
+    state.ledger.push({ id: uid(), childId: cid, type: 'payout', month: activeMonth, installment: index, baseSnapshot: f.base, amount: item.amount, date, by: parentName(), description: `Parcela ${index + 1} de ${monthLabel(activeMonth)}` });
+    if (split.save) state.ledger.push({ id: uid(), childId: cid, goalId: split.goalId, type: 'save', amount: split.save, date, description: 'Guardado automático da parcela' });
+    if (split.give) state.ledger.push({ id: uid(), childId: cid, type: 'give', amount: split.give, date, description: 'Separado pra doar da parcela' });
+    commit(`Parcela da ${c.name} liberada: ${money(item.amount)}!`);
+  }
+
   function closeMonth(cid) {
     if (!isParent() || monthClosed(cid)) return;
-    const c = getChild(cid), f = fin(cid), split = R.payoutSplit(state, c, f.total);
+    const c = getChild(cid), f = fin(cid), remaining = R.remainingPayout(state, cid, activeMonth), split = R.payoutSplit(state, c, remaining);
     const interest = state.goals.filter(g => g.childId === cid && !g.done).map(g => ({ g, amount: R.interestFor(state, g) })).filter(x => x.amount > 0);
     const intTotal = interest.reduce((a, x) => a + x.amount, 0);
-    if (!confirm(`Fechar ${monthLabel(activeMonth)} da ${c.name}?\n\nMesada: ${money(f.total)}\nGastar ${money(split.spend)} · Poupar ${money(split.save)} · Doar ${money(split.give)}\nJuros do pai: ${money(intTotal)}\n\nNão dá pra desfazer.`)) return;
+    if (!confirm(`Fechar ${monthLabel(activeMonth)} da ${c.name}?\n\nTotal do mês: ${money(f.total)}\nJá liberado: ${money(R.advancesPaid(state, cid, activeMonth))}\nRestante a creditar: ${money(remaining)}\nGastar ${money(split.spend)} · Poupar ${money(split.save)} · Doar ${money(split.give)}\nJuros do pai: ${money(intTotal)}\n\nNão dá pra desfazer.`)) return;
     const d = today(), label = monthLabel(activeMonth);
     state.closures.push({ id: uid(), childId: cid, month: activeMonth, base: f.base, habitsCents: f.habitsCents, schoolCents: f.schoolCents, penaltyCents: f.penaltyCents, bonusCents: f.bonusCents, total: f.total, closedAt: d, by: parentName() });
     for (const x of interest) state.ledger.push({ id: uid(), childId: cid, goalId: x.g.id, type: 'interest', amount: x.amount, date: d, description: `Juros do pai em ${x.g.name}` });
-    state.ledger.push({ id: uid(), childId: cid, type: 'payout', amount: f.total, date: d, description: `Mesada de ${label}` });
+    state.ledger.push({ id: uid(), childId: cid, type: 'payout', amount: remaining, month: activeMonth, date: d, description: `Mesada de ${label}` });
     if (split.save > 0) state.ledger.push({ id: uid(), childId: cid, goalId: split.goalId, type: 'save', amount: split.save, date: d, description: 'Guardado automático' });
     if (split.give > 0) state.ledger.push({ id: uid(), childId: cid, type: 'give', amount: split.give, date: d, description: 'Separado pra doar' });
-    save(); render(); celebrate(`💸 Caiu a mesada da ${c.name}: ${money(f.total)}!`); checkProgress();
+    save(); render(); celebrate(`💸 Fechamento da ${c.name}: ${money(remaining)} liberados!`); checkProgress();
   }
 
   async function hashPin(pin, salt) {
@@ -720,6 +757,8 @@
     if (a === 'grade-approve') { gradeApprove(b.dataset.id); return; }
     if (a === 'grade-delete') { gradeDelete(b.dataset.id); return; }
     if (a === 'redeem') { redeemGoal(b.dataset.goal); return; }
+    if (a === 'preset-200') { if (isParent()) { document.getElementById('cfg-base').value = '200'; notify('Base preenchida. Confira e salve as regras para aplicar.'); } return; }
+    if (a === 'pay-installment') { releaseInstallment(b.dataset.child, Number(b.dataset.index)); return; }
     if (a === 'close-month') { closeMonth(state.selected); return; }
     if (a === 'lock') { session.set(false); state.role = `child:${state.selected}`; save(); render(); notify('Bloqueado.'); return; }
     if (a === 'enter-child') { state.role = `child:${b.dataset.child}`; state.selected = b.dataset.child; state.view = 'dashboard'; save(); render(); return; }
@@ -784,14 +823,14 @@
         const pct = R.parseGrade(data.raw, data.scale); if (pct == null) return notify('Não entendi a nota.');
         state.grades.push({ id: uid(), childId: cid, date: d, subject: matchSubject(data.subject), raw: String(data.raw).trim().slice(0, 12), pct, status, source: parent ? 'manual' : 'filha', by });
         const p = R.gradePoints(pct);
-        return commit(parent ? (p ? `Nota da ${child.name}: +${pts(p)}. Elogia o esforço por trás!` : `Nota da ${child.name} lançada.`) : 'Mandado! Agora é com seus pais.');
+        return commit(parent ? (p ? `Nota da ${child.name}: +${pts(p)}. Elogia o esforço por trás!` : `Nota da ${child.name} lançada.`) : 'Registrado neste aparelho para seus pais confirmarem.');
       }
       const list = mode === 'pos' ? R.POS_KINDS : R.NEG_KINDS;
       if (!list.some(k => k.id === data.kind)) return;
       state.occurrences.push({ id: uid(), childId: cid, polarity: mode === 'pos' ? 'pos' : 'neg', kind: data.kind, subject: String(data.subject || '').slice(0, 30), date: d, detail: String(data.detail || '').trim().slice(0, 120), status, recovered: false, by });
       const eff = R.schoolMonth(state, cid, d.slice(0, 7));
       const last = state.occurrences.at(-1);
-      if (!parent) return commit('Mandado! Seus pais vão ver.');
+      if (!parent) return commit('Registrado neste aparelho para seus pais confirmarem.');
       if (mode === 'pos') return commit(eff.perPos[last.id] ? `⭐ +${pts(eff.perPos[last.id])} pra ${child.name}. Comemora com ela!` : `⭐ Registrado. ${child.name} já tem ${R.POSITIVE.maxMonth} no mês.`);
       return commit(eff.perNeg[last.id] ? `Registrado: −${pts(eff.perNeg[last.id])} no bônus. Conversa com ela.` : 'Registrado. É a primeira do mês: só conversa.');
     }
@@ -819,6 +858,11 @@
     }
     if (!isParent()) return;
     // Só pais daqui pra baixo.
+    if (fid === 'form-feedback') {
+      const o = state.occurrences.find(x => x.id === data.id);
+      if (!o || o.polarity !== 'pos' || monthClosed(o.childId, o.date.slice(0, 7))) return;
+      o.feedback = String(data.feedback || '').trim().slice(0, 180); o.feedbackBy = parentName(); modalHTML = ''; return commit('Reconhecimento salvo. 💛');
+    }
     if (fid === 'settings') {
       const c = state.config;
       c.base = number(cents(data.base), 0, 99900); c.habitsPct = number(data.habitsPct, 0, 100); c.schoolPct = number(data.schoolPct, 0, 100);

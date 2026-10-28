@@ -23,6 +23,19 @@ No celular, abra o link e use **Adicionar à tela inicial** para instalar como a
 
 ## Regras padrão
 
+### Conquistas e liberação em quatro parcelas
+
+- O espaço das filhas começa com **Minha semana** e **Contar coisa boa**. Também aceita ajuda em casa, combinados, cuidado com outras pessoas, iniciativas e outras conquistas.
+- Os pais podem deixar uma mensagem de reconhecimento em cada boa atitude confirmada. As filhas veem a mensagem no histórico.
+- A base mensal pode ser liberada em quatro parcelas, nos dias **7, 14, 21 e último dia do mês**. Não equivale a pagar a cada sete dias durante todo o ano; o último período é maior nos meses longos.
+- Para R$ 200 por filha, abra **Regras**, use **Preencher base de R$ 200** e salve. O botão apenas preenche o formulário. Valores e registros existentes são preservados; bases individuais continuam tendo precedência.
+- A primeira parcela fixa a base daquele mês. Alterações posteriores da base não mudam parcelas já combinadas; aplicam-se aos meses sem liberação.
+- Cada liberação vai para os cofrinhos conforme a divisão da filha. O fechamento credita **somente o restante**, incluindo o bônus líquido. Não há transferência bancária.
+- Meses fechados em versões anteriores continuam fechados, sem permitir parcelas extras.
+- O painel diferencia valor previsto e saldo disponível. Na tela dos pais, o total mensal é identificado como soma das duas.
+
+**Limite atual:** não há sincronização entre aparelhos. “Registrar para meus pais” salva neste navegador; a revisão precisa ocorrer aqui. Antes de ativar uso em celulares separados, é necessário configurar autenticação e armazenamento privado com permissões por integrante da família. O PIN local não substitui essa infraestrutura.
+
 | Parâmetro | Valor |
 |---|---|
 | Mesada-base | R$ 100 para Alice e R$ 100 para Letícia |
