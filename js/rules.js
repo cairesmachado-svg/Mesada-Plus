@@ -102,7 +102,17 @@
   };
   const XP_GOAL_DONE = 30;
 
+  const BOOK_REWARD = 5000;
+  const bookKey = (title, author) => `${title}|${author}`.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase().replace(/\s+/g, ' ');
+  function bookReward(state, id) {
+    const book = (state.books || []).find(b => b.id === id);
+    if (!book || book.status !== 'pending') return { error: 'Esta leitura não está pendente.' };
+    if (state.ledger.some(x => x.type === 'book' && (x.bookId === id || (x.childId === book.childId && x.bookKey === bookKey(book.title, book.author))))) return { error: 'Este livro já recebeu a recompensa.' };
+    return { book, amount: BOOK_REWARD };
+  }
+
   const BADGES = [
+    { id: 'livro', icon: '📚', name: 'Livro finalizado', desc: 'Finalizou a leitura de um livro · R$ 50 de recompensa' },
     { id: 'meta1', icon: '🎯', name: 'Primeiro sonho', desc: 'Criou sua primeira meta' },
     { id: 'poupa50', icon: '🐷', name: 'Poupadora', desc: 'Juntou R$ 50 nas metas' },
     { id: 'metaok', icon: '🏆', name: 'Sonho realizado', desc: 'Comprou o que queria com a própria grana' },
@@ -311,7 +321,7 @@
     let v = 0;
     for (const x of state.ledger) {
       if (x.childId !== cid) continue;
-      if (['opening', 'payout', 'mission', 'unsave'].includes(x.type)) v += x.amount;
+      if (['opening', 'payout', 'mission', 'book', 'unsave'].includes(x.type)) v += x.amount;
       else if (['save', 'spend', 'give'].includes(x.type)) v -= x.amount;
     }
     return v;
@@ -414,6 +424,7 @@
     const goals = state.goals.filter(g => g.childId === cid);
     const ledger = state.ledger.filter(x => x.childId === cid);
     const grades = state.grades.filter(g => g.childId === cid && g.status === 'confirmed');
+    if (ledger.some(x => x.type === 'book')) got.add('livro');
     if (goals.length) got.add('meta1');
     if (jarSave(state, cid) >= 5000) got.add('poupa50');
     if (goals.some(g => g.done)) got.add('metaok');
@@ -476,7 +487,7 @@
       selected: 'alice', view: 'dashboard', role: 'parent:igor',
       config: clone(DEFAULT_CONFIG),
       tasks: clone(DEFAULT_TASKS),
-      grades: [], occurrences: [], checkins: [], bonuses: [], goals: [], ledger: [], missions: [],
+      grades: [], occurrences: [], checkins: [], bonuses: [], goals: [], ledger: [], missions: [], books: [],
       closures: [], seenBadges: {}, importedIds: []
     };
   }
@@ -541,7 +552,7 @@
       split: { save: int(c.split?.save, DEFAULT_SPLIT.save, 0, 100), give: int(c.split?.give, DEFAULT_SPLIT.give, 0, 100) }
     }));
     if (!s.children.length) return null;
-    for (const k of ['grades', 'occurrences', 'checkins', 'bonuses', 'goals', 'ledger', 'closures', 'importedIds', 'missions']) {
+    for (const k of ['grades', 'occurrences', 'checkins', 'bonuses', 'goals', 'ledger', 'closures', 'importedIds', 'missions', 'books']) {
       if (!Array.isArray(s[k])) s[k] = [];
     }
     const kids = new Set(s.children.map(c => c.id));
@@ -557,6 +568,7 @@
       .map(x => ({ ...x, description: String(x.description || '').slice(0, 90) }));
     s.closures = s.closures.filter(x => x && kids.has(x.childId) && Number.isSafeInteger(x.total));
     s.importedIds = s.importedIds.filter(x => typeof x === 'string').slice(-2000);
+    s.books = s.books.filter(x => own(x) && typeof x.title === 'string' && x.title.trim()).map(x => ({ ...x, title: x.title.trim().slice(0, 120), author: String(x.author || '').trim().slice(0, 100), status: x.status === 'approved' ? 'approved' : 'pending' }));
     s.missions = s.missions.filter(x => own(x) && typeof x.key === 'string' && /^\d{4}-\d{2}_[0-3]_[a-z]+$/.test(x.key)).map(x => ({ ...x, answer: String(x.answer || '').slice(0, 1000), note: String(x.note || '').slice(0, 180), status: ['pending', 'approved', 'revision'].includes(x.status) ? x.status : 'revision' }));
     s.tasks = mergeTasks(s.tasks);
     if (!s.seenBadges || typeof s.seenBadges !== 'object') s.seenBadges = {};
@@ -570,7 +582,7 @@
   }
 
   return {
-    MISSION_SETS, missionsFor, missionPaid, missionApproval, VERSION, NEG_KINDS, UNCLASSIFIED, POS_KINDS, SUBJECTS, GRADE_TIERS, IMPROVE, POSITIVE, NEGATIVE, CONCEPTS,
+    BOOK_REWARD, bookKey, bookReward, MISSION_SETS, missionsFor, missionPaid, missionApproval, VERSION, NEG_KINDS, UNCLASSIFIED, POS_KINDS, SUBJECTS, GRADE_TIERS, IMPROVE, POSITIVE, NEGATIVE, CONCEPTS,
     DEFAULT_TASKS, DEFAULT_CONFIG, DEFAULT_SPLIT, DEFAULT_PARENTS, LEVELS, LEVEL_NAMES, BADGES, XP_GOAL_DONE,
     dateOfDay, monthDays, cycleOf, datesForCycle, addDays, daysBetween, inMonth, byDate,
     parseGrade, gradePoints, previousGrade, findKind, findPos, schoolMonth, habitsPtsMonth, childBase,

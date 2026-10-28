@@ -224,6 +224,23 @@
     return `<section class="card payment-card">${sec(isParent() ? `Pagamentos da ${esc(c.name)}` : 'Minha mesada', 'Quatro parcelas por mês: dias 7, 14, 21 e último dia. A última pode durar mais de uma semana.')}<div class="payment-summary"><div><span class="small-label">BASE PREVISTA NO MÊS</span><strong>${money(f.base)}</strong></div><div><span class="small-label">${next ? 'PRÓXIMA PARCELA' : 'BASE LIBERADA'}</span><strong>${next ? `${money(next.amount)} · ${fmtD(next.date)}` : money(f.base)}</strong></div></div><div class="list">${plan.map(x => `<div class="list-row"><div class="list-main"><div class="list-name">Parcela ${x.index + 1} · ${fmtD(x.date)}</div><div class="list-meta">${x.paid ? 'Liberada nos cofrinhos' : x.date <= today() ? 'Aguardando liberação dos pais' : 'Prevista'}</div></div><b>${money(x.amount)}</b>${isParent() && !x.paid ? `<button class="btn soft small" data-act="pay-installment" data-child="${c.id}" data-index="${x.index}" ${x.date > today() ? 'disabled' : ''}>Liberar</button>` : ''}</div>`).join('')}</div><p class="section-hint">Bônus líquido do mês: ${money(f.bonusCents)}. Entra no fechamento; parcelas já liberadas não são pagas de novo. Os registros são virtuais: o pagamento real é combinado com os pais.</p></section>`;
   }
 
+  function bookCard(c) {
+    const books = state.books.filter(x => x.childId === c.id).sort((a, b) => b.date.localeCompare(a.date));
+    return `<section class="card week-card" style="margin-top:16px"><div class="week-invite"><span aria-hidden="true">📚</span><div><h2>Finalizar a leitura de um livro</h2><p><b>+ ${money(R.BOOK_REWARD)} por livro</b>, após confirmação dos pais. Conquista especial, fora do teto das missões.</p></div></div><button class="btn positive" data-act="modal-book">Registrar livro finalizado</button><p class="section-hint" style="margin-top:12px">Uma recompensa por título e autor, para cada filha. A leitura deve estar concluída; vocês conversam sobre o livro para confirmar. O valor vai para os cofrinhos conforme a divisão combinada.</p>${books.length ? `<div class="list">${books.map(b => `<div class="list-row"><div class="list-main"><div class="list-name">${esc(b.title)}</div><div class="list-meta">${esc(b.author)} · ${fmtD(b.date)} · ${b.status === 'approved' ? 'R$ 50 liberados' : 'Aguardando confirmação'}</div></div>${isParent() && b.status === 'pending' ? `<button class="btn positive small" data-act="book-approve" data-id="${b.id}">Confirmar + R$ 50</button>` : ''}</div>`).join('')}</div>` : ''}</section>`;
+  }
+  function approveBook(id) {
+    if (!isParent()) return;
+    const result = R.bookReward(state, id); if (result.error) return notify(result.error);
+    const { book, amount } = result, c = getChild(book.childId);
+    if (!confirm(`Confirmar a leitura de “${book.title}” e liberar ${money(amount)} para ${c.name}?\nConquista fora do teto das missões. Registro virtual, sem transferência bancária.`)) return;
+    const split = R.payoutSplit(state, c, amount), date = today();
+    state.ledger.push({ id: uid(), childId: c.id, type: 'book', bookId: id, bookKey: R.bookKey(book.title, book.author), amount, date, by: parentName(), description: `Livro finalizado: ${book.title}` });
+    if (split.save) state.ledger.push({ id: uid(), childId: c.id, goalId: split.goalId, type: 'save', amount: split.save, date, description: 'Poupança da leitura' });
+    if (split.give) state.ledger.push({ id: uid(), childId: c.id, type: 'give', amount: split.give, date, description: 'Doação da leitura' });
+    book.status = 'approved'; book.by = parentName(); book.approvedAt = date;
+    commit(`📚 Livro concluído! ${money(amount)} liberados para ${c.name}.`);
+  }
+
   function missionTeaser(c) {
     const pending = state.missions.filter(x => x.status === 'pending' && (isParent() || x.childId === c.id)).length;
     return `<div class="card mission-teaser"><div><span class="small-label">🚀 DESAFIOS DA SEMANA</span><h2>Uma missão, uma descoberta</h2><p>${isParent() ? `${pending} relatos para revisar. ` : 'Aprender, realizar e cooperar. '}Extras liberados para ${esc(c.name)} neste mês: <b>${money(R.missionPaid(state, c.id, activeMonth))}</b> de ${money(state.config.missionCap)}.</p></div><button class="btn" data-act="nav" data-view="missions">${isParent() ? 'Ver e revisar missões' : 'Escolher minha missão'}</button></div>`;
@@ -286,7 +303,7 @@
     ${sec('As meninas', 'Toque pra ver os detalhes de cada uma.')}
     <div class="grid ${state.children.length >= 3 ? 'three' : 'two'}">${state.children.map(childCard).join('')}</div>
     <div class="grid two sm-stack" style="margin-top:24px">${familyCard()}<div class="card">${sec('Pra revisar', 'Nada vira ponto sem vocês.', `<button class="link-btn" data-act="nav" data-view="school">Escola ${icon('arrow', 14)}</button>`)}${pendingList()}</div></div>
-    ${sec(`Conquistas da ${esc(currentChild().name)}`, 'Toque no cartão da outra pra ver as dela.')}${badgesGrid(currentChild().id)}
+    ${sec(`Conquistas da ${esc(currentChild().name)}`, 'Toque no cartão da outra pra ver as dela.')}${bookCard(currentChild())}${badgesGrid(currentChild().id)}
     <div class="alert-strip" style="margin-top:23px">${icon('shield')}<div>Tudo aqui é virtual. O dinheiro de verdade continua com vocês. O PIN só evita clique sem querer.</div></div>`;
   }
 
@@ -308,7 +325,7 @@
     ${can.submit(c.id) ? `<div class="quick-row"><button class="btn" data-act="nav" data-view="lancar" data-mode="nota">${icon('book')} Mandar nota</button><button class="btn secondary" data-act="nav" data-view="routine">${icon('routine')} Minha rotina</button></div>` : ''}
     ${sec('Minhas metas', 'Escolhe um sonho e vê a barra encher.', `<button class="link-btn" data-act="nav" data-view="wallet">Cofrinhos ${icon('arrow', 14)}</button>`)}
     <div class="grid ${goals.length > 1 ? 'two' : ''}">${goals.map(goalCard).join('') || `<div class="card empty"><div class="empty-icon">🎯</div>Ainda sem meta. Cria a primeira em Cofrinhos.</div>`}</div>
-    ${sec('Minhas conquistas', 'Suas conquistas e três próximos passos. Ganhou, é sua.')}${badgesGrid(c.id, true)}
+    ${sec('Minhas conquistas', 'Suas conquistas e três próximos passos. Ganhou, é sua.')}${bookCard(c)}${badgesGrid(c.id, true)}
     <div class="grid two sm-stack" style="margin-top:24px">${familyCard()}<div class="card"><div class="tip-card"><span style="font-size:30px" aria-hidden="true">💡</span><div><h2 class="section-title" style="margin-bottom:6px">Dica do dia</h2><div class="list-meta" style="font-size:13px">${esc(pick(TIPS[lv.band], Number(today().slice(8))))}</div></div></div></div></div>`;
   }
 
@@ -501,8 +518,8 @@
     const split = { ...R.DEFAULT_SPLIT, ...c.split }, closed = monthClosed(c.id);
     const remaining = R.remainingPayout(state, c.id, activeMonth), preview = R.payoutSplit(state, c, remaining);
     const ledger = state.ledger.filter(l => l.childId === c.id).sort((a, b) => b.date.localeCompare(a.date) || 0).slice(0, 12);
-    const LABEL = { opening: 'Entrada', payout: 'Mesada', mission: 'Recompensa de missão', save: 'Gastar → Poupar', unsave: 'Poupar → Gastar', spend: 'Gasto', give: 'Gastar → Doar', donate: 'Doação', interest: 'Juros do pai', redeem: 'Sonho realizado' };
-    const CREDIT = ['opening', 'payout', 'mission', 'unsave', 'interest'];
+    const LABEL = { opening: 'Entrada', payout: 'Mesada', book: 'Livro finalizado', mission: 'Recompensa de missão', save: 'Gastar → Poupar', unsave: 'Poupar → Gastar', spend: 'Gasto', give: 'Gastar → Doar', donate: 'Doação', interest: 'Juros do pai', redeem: 'Sonho realizado' };
+    const CREDIT = ['opening', 'payout', 'mission', 'book', 'unsave', 'interest'];
     return `${header('DINHEIRO', 'Minha grana, minhas escolhas', 'Gastar, guardar e doar. Cada real com um destino.')}${childPicker()}
     ${paymentCard(c)}
     <div class="grid three" style="margin-top:20px">
@@ -575,7 +592,10 @@
   function openModal(which, id = '') {
     const parentOnly = ['mission-revision', 'feedback', 'child', 'edit-child', 'spend', 'donate', 'classify'];
     if (parentOnly.includes(which) && !isParent()) return notify('Só seus pais podem fazer isso.');
-    if (which === 'mission-revision') {
+    if (which === 'book') {
+      const c = currentChild(); if (!isParent() && !isOwn(c.id)) return;
+      shellModal('Livro finalizado · R$ 50', `Registre a leitura de ${c.name}. Os pais confirmam antes da recompensa.`, `<input type="hidden" name="child" value="${c.id}" />${input('title', 'Título do livro', 'type="text" maxlength="120"')}${input('author', 'Autor ou autora', 'type="text" maxlength="100"')}${input('date', 'Data de conclusão', `type="date" max="${today()}" value="${today()}"`)}`, 'Registrar para confirmação', 'form-book');
+    } else if (which === 'mission-revision') {
       const x = state.missions.find(x => x.id === id); if (!x || x.status !== 'pending') return;
       shellModal('Uma dica para tentar novamente', 'Valorize o esforço e explique o que falta concluir.', `<input type="hidden" name="id" value="${x.id}" />${input('note', 'Dica', 'type="text" maxlength="180" required')}`, 'Enviar dica', 'form-mission-revision');
     } else if (which === 'feedback') {
@@ -806,6 +826,7 @@
     if (a === 'grade-approve') { gradeApprove(b.dataset.id); return; }
     if (a === 'grade-delete') { gradeDelete(b.dataset.id); return; }
     if (a === 'redeem') { redeemGoal(b.dataset.goal); return; }
+    if (a === 'book-approve') { approveBook(b.dataset.id); return; }
     if (a === 'mission-approve') { approveMission(b.dataset.key, b.dataset.child); return; }
     if (a === 'preset-200') { if (isParent()) { document.getElementById('cfg-base').value = '200'; notify('Base preenchida. Confira e salve as regras para aplicar.'); } return; }
     if (a === 'pay-installment') { releaseInstallment(b.dataset.child, Number(b.dataset.index)); return; }
@@ -851,6 +872,15 @@
     // getAttribute: um campo name="id" sobrescreve form.id no DOM.
     const form = e.target, fid = form.getAttribute('id'); if (!fid) return; e.preventDefault();
     const data = Object.fromEntries(new FormData(form));
+    if (fid === 'form-book') {
+      const cid = data.child; if (!state.children.some(c => c.id === cid) || (!isParent() && !isOwn(cid))) return;
+      const title = String(data.title || '').trim().slice(0, 120), author = String(data.author || '').trim().slice(0, 100), date = String(data.date || '');
+      if (!title || !author || !/^\d{4}-\d{2}-\d{2}$/.test(date) || date > today()) return notify('Informe título, autor e uma data válida.');
+      const key = R.bookKey(title, author);
+      if (state.books.some(x => x.childId === cid && R.bookKey(x.title, x.author) === key)) return notify('Este livro já está registrado para ela.');
+      state.books.push({ id: uid(), childId: cid, title, author, date, status: 'pending' }); modalHTML = '';
+      return commit('Livro registrado! A recompensa espera confirmação dos pais.');
+    }
     if (fid.startsWith('mission-')) {
       const cid = viewerId(); if (!cid || !can.submit(cid)) return;
       const m = R.missionsFor(period(), R.cycleOf(today())).find(x => x.key === data.key);

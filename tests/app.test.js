@@ -100,3 +100,21 @@ test('missão cooperativa: aguarda as duas e credita simultaneamente', async () 
   assert.equal(R.missionPaid(a.state(), 'alice', '2026-10'), 500);
   assert.equal(R.missionPaid(a.state(), 'leticia', '2026-10'), 500);
 });
+
+test('livro: recompensa de R$ 50 fora do teto, somente pais e sem duplicação', async () => {
+  const a = app(); a.role('child:alice');
+  await a.submit({ child: 'alice', title: 'O Pequeno Príncipe', author: 'Antoine de Saint-Exupéry', date: '2026-10-31' }, 'form-book');
+  let state = a.state(); assert.equal(state.books.length, 1);
+  const id = state.books[0].id;
+  a.click({ act: 'book-approve', id }); assert.equal(R.jarSpend(a.state(), 'alice'), 0);
+  a.role('parent:igor'); a.click({ act: 'book-approve', id }); a.click({ act: 'book-approve', id });
+  state = a.state(); assert.equal(state.books[0].status, 'approved');
+  assert.equal(state.ledger.filter(x => x.type === 'book').length, 1);
+  assert.equal(R.jarSpend(state, 'alice'), 4500); assert.equal(R.jarGive(state, 'alice'), 500);
+  assert.equal(R.missionPaid(state, 'alice', '2026-10'), 0);
+  assert.equal(R.remainingPayout(state, 'alice', '2026-10'), 10000);
+  assert.ok(R.badges(state, 'alice', '2026-10-31').has('livro'));
+  await a.submit({ child: 'alice', title: 'O Pequeno Príncipe', author: 'Antoine de Saint-Exupéry', date: '2026-10-31' }, 'form-book');
+  assert.equal(a.state().books.length, 1);
+  assert.equal(R.migrate(state).books[0].title, 'O Pequeno Príncipe');
+});

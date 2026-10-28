@@ -102,3 +102,7 @@ O workflow `.github/workflows/deploy-pages.yml` publica a branch `main` no GitHu
 ## Próximo marco
 
 Para uso real por várias famílias: autenticação, dados isolados por família e backend com transações atômicas.
+
+## Conquista especial: livro finalizado
+
+Em **Conquistas**, cada filha pode registrar título, autor e data de conclusão de um livro. Após confirmação de Igor ou Luciana, são liberados **R$ 50 por livro**, seguindo a divisão dos cofrinhos. Esta recompensa não está sujeita ao teto de R$ 20 das missões e não é paga novamente no fechamento mensal. O mesmo título/autor só pode receber uma recompensa por filha. A conquista “Livro finalizado” é desbloqueada após a primeira confirmação.
