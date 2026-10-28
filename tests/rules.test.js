@@ -252,3 +252,44 @@ test('migração saneia backup adulterado', () => {
   assert.ok(!m.ledger.some(x => x.id === 'l9'));
   assert.equal(m.config.base, R.DEFAULT_CONFIG.base);
 });
+
+test('quatro parcelas preservam centavos e usam o último dia real do mês', () => {
+  const s = fresh(); s.config.base = 20001;
+  for (const [month, last] of [['2026-02', '2026-02-28'], ['2028-02', '2028-02-29'], ['2026-10', '2026-10-31']]) {
+    const plan = R.installmentPlan(s, 'alice', month);
+    assert.equal(plan.length, 4);
+    assert.deepEqual(plan.map(x => x.amount), [5000, 5000, 5000, 5001]);
+    assert.equal(plan.at(-1).date, last);
+    assert.equal(plan.reduce((n, x) => n + x.amount, 0), 20001);
+  }
+});
+
+test('parcelas pagas não duplicam no fechamento e base fica fixa só naquele mês', () => {
+  const s = fresh(); s.config.base = 20000;
+  s.ledger.push({ id: 'parcela1', childId: 'alice', type: 'payout', month: '2026-10', installment: 0, baseSnapshot: 20000, amount: 5000, date: '2026-10-07' });
+  s.config.base = 30000;
+  assert.equal(R.finances(s, 'alice', '2026-10').base, 20000);
+  assert.equal(R.finances(s, 'alice', '2026-11').base, 30000);
+  assert.equal(R.finances(s, 'leticia', '2026-10').base, 30000);
+  assert.equal(R.installmentPlan(s, 'alice', '2026-10')[0].paid, true);
+  assert.equal(R.remainingPayout(s, 'alice', '2026-10'), 15000);
+  assert.equal(R.jarSpend(s, 'alice'), 5000);
+  const restored = R.migrate(JSON.parse(JSON.stringify(s)));
+  assert.equal(R.remainingPayout(restored, 'alice', '2026-10'), 15000);
+  s.occurrences.push({ id: 'boa', childId: 'alice', polarity: 'pos', kind: 'casa', status: 'confirmed', date: TODAY });
+  assert.equal(R.remainingPayout(s, 'alice', '2026-10'), 15100);
+  s.closures.push({ childId: 'alice', month: '2026-10', total: 20100, base: 20000, bonusCents: 100 });
+  assert.equal(R.remainingPayout(s, 'alice', '2026-10'), 0);
+  assert.ok(R.installmentPlan(s, 'alice', '2026-10').every(x => x.paid));
+});
+
+test('fechamentos antigos continuam fechados e boas atitudes novas sobrevivem ao backup', () => {
+  const s = fresh();
+  s.closures.push({ childId: 'alice', month: '2026-09', total: 10000, base: 10000, bonusCents: 0 });
+  assert.ok(R.installmentPlan(s, 'alice', '2026-09').every(x => x.paid));
+  s.occurrences.push({ id: 'cuidado1', childId: 'alice', polarity: 'pos', kind: 'cuidado', status: 'confirmed', date: TODAY, feedback: '<Obrigada pela ajuda>', feedbackBy: 'Luciana' });
+  const restored = R.migrate(s);
+  assert.equal(R.findPos(restored.occurrences[0].kind).id, 'cuidado');
+  assert.equal(restored.occurrences[0].feedbackBy, 'Luciana');
+  assert.equal(R.schoolMonth(restored, 'alice', '2026-10').posPts, 10);
+});
