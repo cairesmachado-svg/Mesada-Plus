@@ -77,3 +77,18 @@
 .payment-card > .section-hint { line-height: 1.6; margin-top: 14px; }
 .recognition { margin-top: 8px; padding: 9px 12px; background: #fff5d9; border-radius: 10px; color: #6a501c; line-height: 1.5; overflow-wrap: anywhere; }
 @media (max-width: 480px) { .payment-card .list-row { flex-wrap: wrap; gap: 8px; } .payment-card .list-main { min-width: 140px; } }
+
+.mission-teaser { display:flex; align-items:center; gap:20px; justify-content:space-between; margin-bottom:20px; background:linear-gradient(120deg,#fff6db,#fff); }
+.mission-teaser h2 { margin:8px 0; font-size:21px; }
+.mission-teaser p,.mission-card p { line-height:1.6; color:#596078; }
+.mission-card { display:flex; flex-direction:column; gap:12px; }
+.mission-card h2,.mission-card p { margin:0; }
+.mission-top { display:flex; flex-wrap:wrap; gap:10px; justify-content:space-between; font-size:12px; }
+.mission-top strong { color:#128766; }
+.mission-criteria { padding:12px; border-radius:12px; background:#f3f0ff; font-size:12px; }
+.mission-answer { margin-top:auto; }
+.mission-answer label { display:block; margin:12px 0 8px; font-weight:700; font-size:12px; }
+.mission-answer textarea { width:100%; min-height:110px; border:1px solid #d9dce7; border-radius:12px; padding:12px; margin-bottom:10px; resize:vertical; font:inherit; }
+.mission-text { white-space:pre-wrap; overflow-wrap:anywhere; font-size:13px; line-height:1.6; }
+.mission-review { align-items:flex-start; flex-wrap:wrap; }
+@media(max-width:700px) { .mission-teaser { flex-direction:column; align-items:stretch; } .missions-grid { grid-template-columns:1fr; } .mobile-nav button { min-width:0; font-size:9px; } }

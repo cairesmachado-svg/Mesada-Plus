@@ -293,3 +293,26 @@ test('fechamentos antigos continuam fechados e boas atitudes novas sobrevivem ao
   assert.equal(restored.occurrences[0].feedbackBy, 'Luciana');
   assert.equal(R.schoolMonth(restored, 'alice', '2026-10').posPts, 10);
 });
+
+test('missões: teto bloqueia recompensa inteira; aprovação individual isola a irmã', () => {
+  const s = fresh();
+  s.missions = ['alice', 'leticia'].map(childId => ({ id: childId, childId, key: '2026-10_3_orcamento', date: TODAY, answer: 'Resposta', status: 'pending' }));
+  let r = R.missionApproval(s, '2026-10_3_orcamento', TODAY, 'alice');
+  assert.deepEqual(r.targets.map(c => c.id), ['alice']);
+  s.ledger.push({ id: 'extra', childId: 'alice', type: 'mission', amount: 1900, month: '2026-10', date: TODAY });
+  assert.match(R.missionApproval(s, '2026-10_3_orcamento', TODAY, 'alice').error, /teto/);
+  assert.equal(R.missionPaid(s, 'alice', '2026-10'), 1900);
+  assert.equal(R.missionApproval(s, '2026-10_3_orcamento', '2026-11-01', 'alice').error, undefined);
+  assert.ok(R.missionApproval(s, 'chave-invalida', TODAY, 'alice').error);
+});
+
+test('missões: backup antigo ganha estrutura, novo mantém relatos e recompensa', () => {
+  const old = R.seed(); delete old.missions; delete old.config.missionCap;
+  const s = R.migrate(old);
+  assert.deepEqual(s.missions, []); assert.equal(s.config.missionCap, 2000);
+  s.view = 'missions';
+  s.missions.push({ id: 'missao1', childId: 'alice', key: '2026-10_3_receita', date: TODAY, answer: 'Meu guia', status: 'revision', note: 'Uma dica' });
+  assert.equal(R.migrate(s).missions[0].note, 'Uma dica');
+  assert.equal(R.migrate(s).view, 'missions');
+  for (let w = 0; w < 4; w++) assert.equal(R.missionsFor('2026-10', w).length, 3);
+});

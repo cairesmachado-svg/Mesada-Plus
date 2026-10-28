@@ -21,6 +21,20 @@ No celular, abra o link e use **Adicionar à tela inicial** para instalar como a
 - **E-mails da escola.** Um Google Apps Script lê o Gmail todo dia, entende os avisos do Galois e do ClassApp e prepara notas e ocorrências para aprovação. Ver `apps-script/LEIAME.md`.
 - **PIN do responsável, backup em JSON e instalação na tela inicial do celular.**
 
+## Missões com recompensa extra
+
+A aba **Missões** oferece três desafios por período (aprender, realizar e cooperar), com doze propostas distribuídas pelos quatro ciclos do mês. Os temas incluem orçamento, comparação de preços, pensamento crítico, criatividade e colaboração. Os prazos seguem os ciclos 1–7, 8–14, 15–21 e 22–fim do mês.
+
+- Cada filha descreve a resposta ou realização e envia para revisão dos pais no mesmo navegador.
+- Os pais aprovam ou dão uma dica para uma nova tentativa dentro do prazo. Não há correção automática nem penalidade por errar.
+- Recompensas padrão: R$ 2 por desafio de aprendizado; R$ 5 por realização; R$ 5 para cada filha em missão cooperativa.
+- O teto inicial é R$ 20 por filha/mês e pode ser ajustado em **Regras**. Considera o mês da aprovação. Se o valor exceder o teto, a recompensa inteira fica pendente, sem crédito parcial.
+- Na missão cooperativa, as duas enviam relatos. A aprovação só credita quando ambas estiverem pendentes e houver orçamento para as duas.
+- O extra entra imediatamente nos cofrinhos, seguindo a divisão configurada, e aparece no extrato. Ele não aumenta o valor a pagar no fechamento da mesada; assim não é creditado de novo. Não realiza transferência bancária.
+- Cada missão tem uma recompensa por filha. O histórico e o backup preservam respostas, revisões e aprovações.
+- Missões são opcionais e distintas dos hábitos já remunerados; os pais verificam que a mesma realização não foi usada para pedir dois pagamentos.
+- O armazenamento continua local. Não há sincronização entre celulares.
+
 ## Regras padrão
 
 ### Conquistas e liberação em quatro parcelas

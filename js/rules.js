@@ -82,6 +82,7 @@
     habitsPct: 30,        // teto do bônus de hábitos, em % da base
     schoolPct: 12,        // teto do bônus escolar, em % da base
     centsPerPoint: 10,    // 1 ponto = R$ 0,10
+    missionCap: 2000,     // extras de missões por filha/mês, em centavos
     interestPct: 2,       // "juros do pai" ao mês sobre os cofrinhos de meta
     pin: null,            // { salt, hash } do PIN do responsável
     familyGoal: { name: 'Passeio em família', emoji: '🎡', target: 20 }
@@ -249,6 +250,49 @@
     return closed ? { ...live, ...normalizeClosure(closed), school: s, closed: true } : live;
   }
 
+  /* ---------- Missões opcionais: recompensa independente da mesada ---------- */
+  const MISSION_SETS = [
+    [
+      { id: 'precos', title: 'Detetive de preços', type: '🧠 Aprender', amount: 200, task: 'Compare dois tamanhos de um produto: qual custa menos por 100 g? Explique sua conta.', criteria: 'Mostrar os dois preços, as quantidades e explicar o cálculo.' },
+      { id: 'lanche', title: 'Chef por um dia', type: '🌱 Realizar', amount: 500, task: 'Combine com um adulto um lanche diferente, planeje os ingredientes e preparem juntos.', criteria: 'Contar o planejamento, sua participação e como deixou o espaço organizado.' },
+      { id: 'passeio', title: 'Um passeio, duas ideias', type: '🤝 Cooperar', amount: 500, cooperative: true, task: 'Planejem juntas um passeio gratuito ou de baixo custo para a família.', criteria: 'Cada uma conta sua contribuição; apresentar destino, horário e custo estimado.' }
+    ],
+    [
+      { id: 'juros', title: 'Dinheiro que cresce', type: '🧠 Aprender', amount: 200, task: 'R$ 100 rendem 2% em um mês. Quanto haverá após dois meses sem retirar nada? Explique.', criteria: 'Explicar o raciocínio e revisar a resposta com os pais se necessário.' },
+      { id: 'reparo', title: 'Uma solução criativa', type: '🌱 Realizar', amount: 500, task: 'Escolha com os pais algo que possa ser reaproveitado e dê uma nova utilidade a ele.', criteria: 'Descrever a ideia e o resultado. Sem ferramentas perigosas; peça ajuda adulta.' },
+      { id: 'jogos', title: 'Noite de jogos', type: '🤝 Cooperar', amount: 500, cooperative: true, task: 'Organizem juntas uma noite de jogos para a família, com regras e participação de todos.', criteria: 'Cada uma explica sua parte na organização e como incluíram a família.' }
+    ],
+    [
+      { id: 'noticia', title: 'Será verdade?', type: '🧠 Aprender', amount: 200, task: 'Escolha com os pais uma notícia e confira autoria, data e uma segunda fonte.', criteria: 'Citar as fontes consultadas e explicar o que conseguiu confirmar.' },
+      { id: 'habilidade', title: 'Aprender e ensinar', type: '🌱 Realizar', amount: 500, task: 'Aprenda uma habilidade nova e ensine à família em uma demonstração curta.', criteria: 'Explicar onde aprendeu, demonstrar e contar uma dificuldade que superou.' },
+      { id: 'memorias', title: 'Memórias em dupla', type: '🤝 Cooperar', amount: 500, cooperative: true, task: 'Conversem com alguém da família sobre uma lembrança e façam juntas um pequeno relato.', criteria: 'Cada uma conta sua contribuição. Peçam permissão e não publiquem dados pessoais.' }
+    ],
+    [
+      { id: 'orcamento', title: 'Cabe no orçamento?', type: '🧠 Aprender', amount: 200, task: 'Imagine uma compra de R$ 80. Guardando R$ 15 por semana, em quantas semanas conseguirá comprar? Explique.', criteria: 'Mostrar a conta e explicar por que arredondou o número de semanas.' },
+      { id: 'receita', title: 'Uma ideia no papel', type: '🌱 Realizar', amount: 500, task: 'Crie um guia curto de algo útil que você sabe fazer e teste com alguém da família.', criteria: 'Mostrar o guia e explicar o que mudou depois do teste.' },
+      { id: 'gentileza', title: 'Gentileza planejada', type: '🤝 Cooperar', amount: 500, cooperative: true, task: 'Combinem com os pais uma ação de cuidado para alguém e realizem juntas.', criteria: 'Cada uma relata sua contribuição e o que aprendeu, respeitando a privacidade da pessoa.' }
+    ]
+  ];
+  function missionsFor(m, week) {
+    const dates = datesForCycle(m, week);
+    return MISSION_SETS[week].map(t => ({ ...t, key: `${m}_${week}_${t.id}`, month: m, week, deadline: dates.at(-1) }));
+  }
+  const missionPaid = (state, cid, m) => state.ledger.filter(x => x.childId === cid && x.type === 'mission' && x.month === m).reduce((n, x) => n + x.amount, 0);
+  // Aprova o grupo todo ou ninguém: cooperação não vira disputa pelo orçamento.
+  function missionApproval(state, key, reviewDate, childId) {
+    const match = /^(\d{4}-\d{2})_([0-3])_/.exec(key);
+    if (!match) return { error: 'Missão inválida.' };
+    const mission = missionsFor(match[1], Number(match[2])).find(x => x.key === key);
+    if (!mission) return { error: 'Missão inválida.' };
+    const records = state.missions.filter(x => x.key === key && x.status === 'pending' && (mission.cooperative || x.childId === childId));
+    const targets = mission.cooperative ? state.children : state.children.filter(c => records.some(x => x.childId === c.id));
+    if (!targets.length || targets.some(c => !records.some(x => x.childId === c.id))) return { error: 'Esperando o relato de cada participante.' };
+    const month = reviewDate.slice(0, 7);
+    if (targets.some(c => state.ledger.some(x => x.type === 'mission' && x.missionKey === key && x.childId === c.id))) return { error: 'Esta recompensa já foi liberada.' };
+    if (targets.some(c => missionPaid(state, c.id, month) + mission.amount > state.config.missionCap)) return { error: 'A recompensa ultrapassa o teto mensal. Nenhum valor foi liberado.' };
+    return { mission, records, targets, month };
+  }
+
   /* ---------- Cofrinhos ---------- */
 
   // Quatro parcelas mensais: dias 7, 14, 21 e último dia. Não promete 52 semanas/ano.
@@ -267,7 +311,7 @@
     let v = 0;
     for (const x of state.ledger) {
       if (x.childId !== cid) continue;
-      if (['opening', 'payout', 'unsave'].includes(x.type)) v += x.amount;
+      if (['opening', 'payout', 'mission', 'unsave'].includes(x.type)) v += x.amount;
       else if (['save', 'spend', 'give'].includes(x.type)) v -= x.amount;
     }
     return v;
@@ -432,7 +476,7 @@
       selected: 'alice', view: 'dashboard', role: 'parent:igor',
       config: clone(DEFAULT_CONFIG),
       tasks: clone(DEFAULT_TASKS),
-      grades: [], occurrences: [], checkins: [], bonuses: [], goals: [], ledger: [],
+      grades: [], occurrences: [], checkins: [], bonuses: [], goals: [], ledger: [], missions: [],
       closures: [], seenBadges: {}, importedIds: []
     };
   }
@@ -477,6 +521,7 @@
     const c0 = { ...clone(DEFAULT_CONFIG), ...(s.config || {}) };
     const fg = { ...DEFAULT_CONFIG.familyGoal, ...(c0.familyGoal || {}) };
     s.config = {
+      missionCap: int(c0.missionCap, DEFAULT_CONFIG.missionCap, 0, 99900),
       base: int(c0.base, DEFAULT_CONFIG.base, 0, 99900),
       habitsPct: int(c0.habitsPct, DEFAULT_CONFIG.habitsPct, 0, 100),
       schoolPct: int(c0.schoolPct, DEFAULT_CONFIG.schoolPct, 0, 100),
@@ -496,7 +541,7 @@
       split: { save: int(c.split?.save, DEFAULT_SPLIT.save, 0, 100), give: int(c.split?.give, DEFAULT_SPLIT.give, 0, 100) }
     }));
     if (!s.children.length) return null;
-    for (const k of ['grades', 'occurrences', 'checkins', 'bonuses', 'goals', 'ledger', 'closures', 'importedIds']) {
+    for (const k of ['grades', 'occurrences', 'checkins', 'bonuses', 'goals', 'ledger', 'closures', 'importedIds', 'missions']) {
       if (!Array.isArray(s[k])) s[k] = [];
     }
     const kids = new Set(s.children.map(c => c.id));
@@ -512,19 +557,20 @@
       .map(x => ({ ...x, description: String(x.description || '').slice(0, 90) }));
     s.closures = s.closures.filter(x => x && kids.has(x.childId) && Number.isSafeInteger(x.total));
     s.importedIds = s.importedIds.filter(x => typeof x === 'string').slice(-2000);
+    s.missions = s.missions.filter(x => own(x) && typeof x.key === 'string' && /^\d{4}-\d{2}_[0-3]_[a-z]+$/.test(x.key)).map(x => ({ ...x, answer: String(x.answer || '').slice(0, 1000), note: String(x.note || '').slice(0, 180), status: ['pending', 'approved', 'revision'].includes(x.status) ? x.status : 'revision' }));
     s.tasks = mergeTasks(s.tasks);
     if (!s.seenBadges || typeof s.seenBadges !== 'object') s.seenBadges = {};
     s.parents = (Array.isArray(s.parents) ? s.parents : []).filter(p => p && okId(p.id)).map(p => ({ id: p.id, name: String(p.name || 'Responsável').slice(0, 20) }));
     if (!s.parents.length) s.parents = clone(DEFAULT_PARENTS);
     if (!s.children.some(c => c.id === s.selected)) s.selected = s.children[0].id;
-    if (!['dashboard', 'school', 'lancar', 'routine', 'wallet', 'rules'].includes(s.view)) s.view = 'dashboard';
+    if (!['dashboard', 'school', 'lancar', 'routine', 'wallet', 'rules', 'missions'].includes(s.view)) s.view = 'dashboard';
     const roles = [...s.parents.map(p => `parent:${p.id}`), ...s.children.map(c => `child:${c.id}`)];
     if (!roles.includes(s.role)) s.role = roles[0];
     return s;
   }
 
   return {
-    VERSION, NEG_KINDS, UNCLASSIFIED, POS_KINDS, SUBJECTS, GRADE_TIERS, IMPROVE, POSITIVE, NEGATIVE, CONCEPTS,
+    MISSION_SETS, missionsFor, missionPaid, missionApproval, VERSION, NEG_KINDS, UNCLASSIFIED, POS_KINDS, SUBJECTS, GRADE_TIERS, IMPROVE, POSITIVE, NEGATIVE, CONCEPTS,
     DEFAULT_TASKS, DEFAULT_CONFIG, DEFAULT_SPLIT, DEFAULT_PARENTS, LEVELS, LEVEL_NAMES, BADGES, XP_GOAL_DONE,
     dateOfDay, monthDays, cycleOf, datesForCycle, addDays, daysBetween, inMonth, byDate,
     parseGrade, gradePoints, previousGrade, findKind, findPos, schoolMonth, habitsPtsMonth, childBase,

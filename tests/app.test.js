@@ -23,7 +23,7 @@ function app(seed = R.seed()) {
     state: () => JSON.parse(saved),
     click: dataset => handlers.click({ target: { closest: () => ({ dataset }) } }),
     role: value => handlers.change({ target: { id: 'role', value } }),
-    submit: values => handlers.submit({ preventDefault() {}, target: { getAttribute: () => 'form-lancar', values } })
+    submit: (values, fid = 'form-lancar') => handlers.submit({ preventDefault() {}, target: { getAttribute: () => fid, values } })
   };
 }
 
@@ -31,7 +31,7 @@ test('todas as telas abrem nos quatro perfis; criança não recebe ações de pa
   const a = app();
   for (const role of ['parent:igor', 'parent:luciana', 'child:alice', 'child:leticia']) {
     a.role(role);
-    for (const view of ['dashboard', 'lancar', 'routine', 'wallet', 'school', 'rules']) {
+    for (const view of ['dashboard', 'lancar', 'routine', 'wallet', 'school', 'rules', 'missions']) {
       a.click({ act: 'nav', view });
       assert.match(a.html(), /Mesada\+/);
       if (role.startsWith('child:')) assert.doesNotMatch(a.html(), /data-act="pay-installment"/);
@@ -71,4 +71,32 @@ test('boa atitude de casa fica pendente e reconhecimento é escapado ao renderiz
   const b = app(s); b.click({ act: 'nav', view: 'dashboard' });
   assert.match(b.html(), /&lt;img src=x onerror=alert\(1\)&gt;/);
   assert.doesNotMatch(b.html(), /<img src=x/);
+});
+
+test('missão individual: filha envia, pais aprovam uma vez e extra não altera mesada', async () => {
+  const a = app(); a.role('child:alice'); a.click({ act: 'nav', view: 'missions' });
+  assert.match(a.html(), /Cabe no orçamento/);
+  await a.submit({ key: '2026-10_3_orcamento', answer: 'Preciso de 6 semanas, porque cinco dão 75.' }, 'mission-orcamento');
+  assert.equal(a.state().missions[0].status, 'pending');
+  a.click({ act: 'mission-approve', key: '2026-10_3_orcamento', child: 'alice' });
+  assert.equal(R.missionPaid(a.state(), 'alice', '2026-10'), 0);
+  a.role('parent:igor');
+  a.click({ act: 'mission-approve', key: '2026-10_3_orcamento', child: 'alice' });
+  a.click({ act: 'mission-approve', key: '2026-10_3_orcamento', child: 'alice' });
+  assert.equal(a.state().missions[0].status, 'approved');
+  assert.equal(R.missionPaid(a.state(), 'alice', '2026-10'), 200);
+  assert.equal(R.jarSpend(a.state(), 'alice'), 180);
+  assert.equal(R.remainingPayout(a.state(), 'alice', '2026-10'), 10000);
+});
+
+test('missão cooperativa: aguarda as duas e credita simultaneamente', async () => {
+  const a = app(); a.role('child:alice');
+  await a.submit({ key: '2026-10_3_gentileza', answer: 'Minha contribuição foi planejar.' }, 'mission-gentileza');
+  a.role('parent:igor'); a.click({ act: 'mission-approve', key: '2026-10_3_gentileza', child: 'alice' });
+  assert.equal(R.missionPaid(a.state(), 'alice', '2026-10'), 0);
+  a.role('child:leticia');
+  await a.submit({ key: '2026-10_3_gentileza', answer: 'Minha contribuição foi realizar junto.' }, 'mission-gentileza');
+  a.role('parent:luciana'); a.click({ act: 'mission-approve', key: '2026-10_3_gentileza', child: 'leticia' });
+  assert.equal(R.missionPaid(a.state(), 'alice', '2026-10'), 500);
+  assert.equal(R.missionPaid(a.state(), 'leticia', '2026-10'), 500);
 });

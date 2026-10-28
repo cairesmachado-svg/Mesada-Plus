@@ -161,7 +161,7 @@
 
   /* ---------- Estrutura ---------- */
 
-  const NAV = [['dashboard', 'Início', 'Início'], ['school', 'Escola', 'Escola'], ['lancar', 'Lançar', 'Lançar'], ['routine', 'Rotina', 'Rotina'], ['wallet', 'Cofrinhos', 'Cofres'], ['rules', 'Regras', 'Regras']];
+  const NAV = [['dashboard', 'Início', 'Início'], ['school', 'Escola', 'Escola'], ['lancar', 'Lançar', 'Lançar'], ['routine', 'Rotina', 'Rotina'], ['wallet', 'Cofrinhos', 'Cofres'], ['missions', 'Missões', 'Missões'], ['rules', 'Regras', 'Regras']];
   const navCount = k => (k === 'school' && isParent() && pendingCount() ? `<span class="nav-count">${pendingCount()}</span>` : '');
   const navItem = ([k, label]) => `<button class="nav-btn ${state.view === k ? 'active' : ''}" data-act="nav" data-view="${k}">${icon(k)}<span>${label}</span>${navCount(k)}</button>`;
   const header = (eyebrow, title, description, action = '') => `<div class="page-heading"><div><div class="eyebrow">${eyebrow}</div><h1>${title}</h1><p>${description}</p></div>${action || periodChip()}</div>`;
@@ -177,12 +177,13 @@
     else if (state.view === 'lancar') content = renderLancar();
     else if (state.view === 'routine') content = renderRoutine();
     else if (state.view === 'wallet') content = renderWallet();
+    else if (state.view === 'missions') content = renderMissions();
     else if (state.view === 'rules') content = renderRules();
     else content = renderDashboard();
     const parent = isParent();
     const roleOptions = [...state.parents.map(p => [`parent:${p.id}`, `👤 ${p.name}`]), ...state.children.map(c => [`child:${c.id}`, c.name])]
       .map(([v, l]) => `<option value="${v}" ${state.role === v ? 'selected' : ''}>${esc(l)}</option>`).join('');
-    document.getElementById('app').innerHTML = `<div class="shell"><aside class="sidebar"><div class="brand"><span class="brand-mark">✳</span><div><div class="brand-name">mesada<span style="color:#b2a9ff">+</span></div><span class="brand-kicker">FAMÍLIA</span></div></div><div class="nav-group-label">NO DIA A DIA</div><nav aria-label="Seções">${NAV.slice(0, 5).map(navItem).join('')}<div class="nav-gap"></div><div class="nav-group-label">AJUSTES</div>${navItem(NAV[5])}</nav><div class="side-bottom"><div class="side-tip"><strong>🌱 Esforço vale mais.</strong>Hábito pesa mais que nota. As duas juntas, nunca uma contra a outra.</div><div class="demo-tag"><span class="demo-dot"></span> DADOS SÓ NESTE APARELHO</div></div></aside>
+    document.getElementById('app').innerHTML = `<div class="shell"><aside class="sidebar"><div class="brand"><span class="brand-mark">✳</span><div><div class="brand-name">mesada<span style="color:#b2a9ff">+</span></div><span class="brand-kicker">FAMÍLIA</span></div></div><div class="nav-group-label">NO DIA A DIA</div><nav aria-label="Seções">${NAV.slice(0, 6).map(navItem).join('')}<div class="nav-gap"></div><div class="nav-group-label">AJUSTES</div>${navItem(NAV[6])}</nav><div class="side-bottom"><div class="side-tip"><strong>🌱 Esforço vale mais.</strong>Hábito pesa mais que nota. As duas juntas, nunca uma contra a outra.</div><div class="demo-tag"><span class="demo-dot"></span> DADOS SÓ NESTE APARELHO</div></div></aside>
     <main class="content"><div class="topline"><div class="breadcrumbs">Mesada+ / <b>${esc(NAV.find(x => x[0] === state.view)?.[1])}</b></div><div class="top-actions"><label class="small-label" for="role">Quem está usando?</label><select id="role" class="mode-select" aria-label="Quem está usando?">${roleOptions}</select>${parent && state.config.pin ? `<button class="btn secondary small" data-act="lock" aria-label="Bloquear">${icon('lock')}</button>` : ''}</div></div>${content}<div class="footer">Mesada+ · Os dados ficam só neste aparelho. Faça backup em Regras.</div></main></div><nav class="mobile-nav" aria-label="Navegação">${NAV.map(([k, , short]) => `<button class="${state.view === k ? 'active' : ''} ${k === 'lancar' ? 'nav-plus' : ''}" data-act="nav" data-view="${k}">${icon(k)}<span>${short}</span>${navCount(k)}</button>`).join('')}</nav>${modalHTML}`;
   }
 
@@ -223,6 +224,48 @@
     return `<section class="card payment-card">${sec(isParent() ? `Pagamentos da ${esc(c.name)}` : 'Minha mesada', 'Quatro parcelas por mês: dias 7, 14, 21 e último dia. A última pode durar mais de uma semana.')}<div class="payment-summary"><div><span class="small-label">BASE PREVISTA NO MÊS</span><strong>${money(f.base)}</strong></div><div><span class="small-label">${next ? 'PRÓXIMA PARCELA' : 'BASE LIBERADA'}</span><strong>${next ? `${money(next.amount)} · ${fmtD(next.date)}` : money(f.base)}</strong></div></div><div class="list">${plan.map(x => `<div class="list-row"><div class="list-main"><div class="list-name">Parcela ${x.index + 1} · ${fmtD(x.date)}</div><div class="list-meta">${x.paid ? 'Liberada nos cofrinhos' : x.date <= today() ? 'Aguardando liberação dos pais' : 'Prevista'}</div></div><b>${money(x.amount)}</b>${isParent() && !x.paid ? `<button class="btn soft small" data-act="pay-installment" data-child="${c.id}" data-index="${x.index}" ${x.date > today() ? 'disabled' : ''}>Liberar</button>` : ''}</div>`).join('')}</div><p class="section-hint">Bônus líquido do mês: ${money(f.bonusCents)}. Entra no fechamento; parcelas já liberadas não são pagas de novo. Os registros são virtuais: o pagamento real é combinado com os pais.</p></section>`;
   }
 
+  function missionTeaser(c) {
+    const pending = state.missions.filter(x => x.status === 'pending' && (isParent() || x.childId === c.id)).length;
+    return `<div class="card mission-teaser"><div><span class="small-label">🚀 DESAFIOS DA SEMANA</span><h2>Uma missão, uma descoberta</h2><p>${isParent() ? `${pending} relatos para revisar. ` : 'Aprender, realizar e cooperar. '}Extras liberados para ${esc(c.name)} neste mês: <b>${money(R.missionPaid(state, c.id, activeMonth))}</b> de ${money(state.config.missionCap)}.</p></div><button class="btn" data-act="nav" data-view="missions">${isParent() ? 'Ver e revisar missões' : 'Escolher minha missão'}</button></div>`;
+  }
+
+  function renderMissions() {
+    const c = currentChild(), parent = isParent();
+    const current = period();
+    const missions = R.missionsFor(current, R.cycleOf(today()));
+    const all = state.missions.filter(x => parent || x.childId === c.id).sort((a, b) => b.date.localeCompare(a.date));
+    return `${header('MISSÕES', 'Desafios da semana 🚀', 'Escolha uma aventura. É opcional, sem competição e sem desconto na mesada.', '<span></span>')}${childPicker()}
+      <div class="hint-box" style="margin:16px 0">Extras liberados para ${esc(c.name)} em ${esc(monthLabel(current))}: <b>${money(R.missionPaid(state, c.id, current))}</b> de ${money(state.config.missionCap)}. O valor entra nos cofrinhos após aprovação, separado da mesada. O teto considera o mês da aprovação; recompensas não são reduzidas pela metade para caber nele.</div>
+      <div class="grid three missions-grid">${missions.map(m => {
+        const record = state.missions.find(x => x.key === m.key && x.childId === c.id);
+        return `<article class="card mission-card"><div class="mission-top"><span>${m.type}</span><strong>+ ${money(m.amount)}${m.cooperative ? ' por filha' : ''}</strong></div><h2>${esc(m.title)}</h2><p>${esc(m.task)}</p><div class="mission-criteria"><b>Como concluir</b><p>${esc(m.criteria)}</p></div><p class="list-meta">Até ${fmtD(m.deadline)}${m.cooperative ? ' · As duas enviam seus relatos; aprovação e recompensa juntas.' : ''}</p>${record ? `<span class="pill ${record.status === 'approved' ? 'justified' : 'pending'}">${record.status === 'approved' ? 'Recompensa liberada' : record.status === 'revision' ? 'Pode tentar de novo' : 'Aguardando os pais'}</span>` : ''}${!parent && (!record || record.status === 'revision') ? `<form class="mission-answer" id="mission-${m.id}"><input type="hidden" name="key" value="${m.key}" /><label for="answer-${m.id}">Conte sua resposta ou o que realizou</label><textarea id="answer-${m.id}" name="answer" maxlength="1000" required placeholder="Explique com suas palavras...">${esc(record?.answer || '')}</textarea><button class="btn positive block" type="submit">Enviar para revisão</button></form>` : ''}${record?.note ? `<div class="recognition">💛 ${esc(record.note)}</div>` : ''}</article>`;
+      }).join('')}</div>
+      ${sec(parent ? 'Relatos para acompanhar' : 'Minhas tentativas', 'Errar faz parte. Os pais podem pedir uma revisão com uma dica.')}
+      <div class="card"><div class="list">${all.map(x => {
+        const m = missionFromKey(x.key); if (!m) return '';
+        return `<div class="list-row mission-review"><div class="list-main"><div class="list-name">${esc(getChild(x.childId).name)} · ${esc(m.title)}</div><div class="list-meta">${fmtD(x.date)} · ${x.status === 'approved' ? 'Aprovada' : x.status === 'revision' ? 'Tentar novamente' : 'Esperando revisão'} · +${money(m.amount)}</div><p class="mission-text">${esc(x.answer)}</p>${x.note ? `<div class="recognition">${esc(x.note)}</div>` : ''}</div>${parent && x.status === 'pending' ? `<div class="btns"><button class="btn positive small" data-act="mission-approve" data-key="${x.key}" data-child="${x.childId}">${m.cooperative ? 'Aprovar as duas' : 'Aprovar'}</button><button class="btn secondary small" data-act="modal-mission-revision" data-id="${x.id}">Dar uma dica</button></div>` : ''}</div>`;
+      }).join('') || '<div class="empty">Nenhuma tentativa ainda. Escolha uma missão acima!</div>'}</div></div><p class="section-hint" style="margin-top:16px">Os registros continuam neste navegador. Para revisar, os pais precisam usar o mesmo aparelho. Missões são extras: não use a mesma realização para pedir dois pagamentos.</p>`;
+  }
+  function missionFromKey(key) {
+    const match = /^(\d{4}-\d{2})_([0-3])_/.exec(key);
+    return match ? R.missionsFor(match[1], Number(match[2])).find(m => m.key === key) : null;
+  }
+  function approveMission(key, cid) {
+    if (!isParent()) return;
+    const result = R.missionApproval(state, key, today(), cid);
+    if (result.error) return notify(result.error);
+    const { mission, records, targets, month } = result;
+    if (!confirm(`Liberar ${money(mission.amount)} para ${targets.map(c => c.name).join(' e ')}?\nRecompensa extra virtual nos cofrinhos; não faz transferência bancária.`)) return;
+    for (const c of targets) {
+      const split = R.payoutSplit(state, c, mission.amount), date = today();
+      state.ledger.push({ id: uid(), childId: c.id, type: 'mission', missionKey: key, month, amount: mission.amount, date, by: parentName(), description: `Missão: ${mission.title}` });
+      if (split.save) state.ledger.push({ id: uid(), childId: c.id, goalId: split.goalId, type: 'save', amount: split.save, date, description: 'Poupança da missão' });
+      if (split.give) state.ledger.push({ id: uid(), childId: c.id, type: 'give', amount: split.give, date, description: 'Doação da missão' });
+    }
+    for (const x of records) { x.status = 'approved'; x.approvedAt = today(); x.by = parentName(); }
+    commit('Missão reconhecida! Recompensa extra liberada. 🚀');
+  }
+
   function pendingList(limit = 6) {
     const rows = [
       ...state.grades.filter(g => g.status === 'pending').map(g => ({ date: g.date, html: gradeLine(g) })),
@@ -238,6 +281,7 @@
     <div class="grid two sm-stack"><div class="card hero"><div class="welcome"><div><div class="hero-upper">TOTAL DAS DUAS NO MÊS</div><div class="hero-number">${money(sum('total'))}</div><div class="hero-caption">${esc(monthLabel(activeMonth))} · base em quatro parcelas; bônus no fechamento</div></div><div class="welcome-illustration" aria-hidden="true">🪙</div></div><div class="hero-line"><div><b>${money(sum('base'))}</b><span>Base</span></div><div><b>+ ${money(sum('habitsCents') + sum('schoolCents'))}</b><span>Bônus</span></div><div><b>− ${money(Math.min(sum('penaltyCents'), sum('habitsCents') + sum('schoolCents')))}</b><span>Ajustes</span></div></div></div>
     <div class="grid two metrics-mobile"><div class="card metric"><div class="metric-head">HÁBITOS <span class="metric-icon bg-purple purple">${icon('routine')}</span></div><div class="metric-number purple">+ ${money(sum('habitsCents'))}</div><div class="metric-sub">Estudo, casa e rotina</div></div><div class="card metric"><div class="metric-head">ESCOLA <span class="metric-icon bg-good good">${icon('stars')}</span></div><div class="metric-number good">+ ${money(sum('schoolCents'))}</div><div class="metric-sub">Notas e coisas boas</div></div><div class="card metric"><div class="metric-head">COFRINHOS <span class="metric-icon bg-gold gold">${icon('pig')}</span></div><div class="metric-number">${money(state.children.reduce((a, c) => a + R.jarSave(state, c.id) + R.jarGive(state, c.id), 0))}</div><div class="metric-sub">Guardado e pra doar</div></div><div class="card metric" data-act="nav" data-view="school" role="button" tabindex="0" style="cursor:pointer"><div class="metric-head">PRA REVISAR <span class="metric-icon bg-bad bad">${icon('clock')}</span></div><div class="metric-number">${pendingCount()}</div><div class="metric-sub">O que as meninas mandaram</div></div></div></div>
     <div class="quick-row"><button class="btn" data-act="nav" data-view="lancar" data-mode="pos">${icon('stars')} Coisa boa</button><button class="btn secondary" data-act="nav" data-view="lancar" data-mode="neg">${icon('chat')} Pra conversar</button><button class="btn secondary" data-act="nav" data-view="lancar" data-mode="nota">${icon('book')} Nota</button></div>
+    ${missionTeaser(currentChild())}
     ${paymentCard(currentChild())}
     ${sec('As meninas', 'Toque pra ver os detalhes de cada uma.')}
     <div class="grid ${state.children.length >= 3 ? 'three' : 'two'}">${state.children.map(childCard).join('')}</div>
@@ -257,6 +301,7 @@
     const f = fin(c.id), lv = level(c), st = R.streak(state, c.id, today()), goals = state.goals.filter(g => g.childId === c.id && !g.done).slice(0, 3);
     return `${header('MEU ESPAÇO', `E aí, ${esc(c.name)}! ✨`, 'Suas conquistas, sua grana e seus sonhos.')}
     ${weeklyCard(c)}
+    ${missionTeaser(c)}
     ${paymentCard(c)}
     <div class="grid two sm-stack"><div class="card hero level-hero"><div class="welcome"><div><div class="hero-upper">NÍVEL ${lv.level}</div><div class="hero-number">${esc(levelText(lv))}</div><div class="hero-caption">${lv.next ? `Faltam ${lv.toNext} XP pro nível ${lv.level + 1}` : 'Nível máximo. Lendária!'}</div></div><div class="welcome-illustration" aria-hidden="true">${mascot(lv)}</div></div><div class="xp-bar light"><span style="width:${lv.progress}%"></span></div><div class="hero-line"><div><b>🔥 ${st} ${st === 1 ? 'dia' : 'dias'}</b><span>Sequência</span></div><div><b>${lv.xp} XP</b><span>Esforço</span></div><div><b>🏅 ${unlockedBadges(c.id).size}/${R.BADGES.length}</b><span>Conquistas</span></div></div></div>
     <div class="grid two metrics-mobile"><div class="card metric"><div class="metric-head">PREVISTO NO MÊS <span class="metric-icon bg-purple purple">${icon('coin')}</span></div><div class="metric-number">${money(f.total)}</div><div class="metric-sub">Base de ${money(f.base)} garantida</div></div><div class="card metric"><div class="metric-head">BÔNUS <span class="metric-icon bg-good good">${icon('stars')}</span></div><div class="metric-number good">+ ${money(f.bonusCents)}</div><div class="metric-sub">Hábitos ${money(f.habitsCents)} · Escola ${money(f.schoolCents)}</div></div><div class="card metric"><div class="metric-head">SALDO LIBERADO <span class="metric-icon bg-gold gold">${icon('bag')}</span></div><div class="metric-number">${money(R.jarSpend(state, c.id))}</div><div class="metric-sub">Disponível após liberações e gastos</div></div><div class="card metric"><div class="metric-head">GUARDADO <span class="metric-icon bg-good good">${icon('pig')}</span></div><div class="metric-number">${money(R.jarSave(state, c.id))}</div><div class="metric-sub">Nas suas metas</div></div></div></div>
@@ -456,8 +501,8 @@
     const split = { ...R.DEFAULT_SPLIT, ...c.split }, closed = monthClosed(c.id);
     const remaining = R.remainingPayout(state, c.id, activeMonth), preview = R.payoutSplit(state, c, remaining);
     const ledger = state.ledger.filter(l => l.childId === c.id).sort((a, b) => b.date.localeCompare(a.date) || 0).slice(0, 12);
-    const LABEL = { opening: 'Entrada', payout: 'Mesada', save: 'Gastar → Poupar', unsave: 'Poupar → Gastar', spend: 'Gasto', give: 'Gastar → Doar', donate: 'Doação', interest: 'Juros do pai', redeem: 'Sonho realizado' };
-    const CREDIT = ['opening', 'payout', 'unsave', 'interest'];
+    const LABEL = { opening: 'Entrada', payout: 'Mesada', mission: 'Recompensa de missão', save: 'Gastar → Poupar', unsave: 'Poupar → Gastar', spend: 'Gasto', give: 'Gastar → Doar', donate: 'Doação', interest: 'Juros do pai', redeem: 'Sonho realizado' };
+    const CREDIT = ['opening', 'payout', 'mission', 'unsave', 'interest'];
     return `${header('DINHEIRO', 'Minha grana, minhas escolhas', 'Gastar, guardar e doar. Cada real com um destino.')}${childPicker()}
     ${paymentCard(c)}
     <div class="grid three" style="margin-top:20px">
@@ -496,6 +541,7 @@
       ['habitsPct', 'Teto de hábitos (% da base)', c.habitsPct, 'min="0" max="100" step="1"'],
       ['schoolPct', 'Teto da escola (% da base)', c.schoolPct, 'min="0" max="100" step="1"'],
       ['centsPerPoint', 'Quanto vale 1 ponto (centavos)', c.centsPerPoint, 'min="1" max="100" step="1"'],
+      ['missionCap', 'Teto de missões por filha/mês (R$)', c.missionCap / 100, 'min="0" max="999" step="0.01"'],
       ['interestPct', 'Juros do pai (% ao mês)', c.interestPct, 'min="0" max="10" step="0.5"']
     ].map(([k, l, v, o]) => `<div class="rule-field"><label for="cfg-${k}">${l}</label><input id="cfg-${k}" name="${k}" type="number" ${o} value="${v}" ${dis} /></div>`).join('')}</div>
     <p class="section-hint" style="margin-top:12px">R$ 200 mensais = quatro parcelas de R$ 50. Não é um pagamento a cada sete dias durante todo o ano.</p>${parent ? '<button type="button" class="btn soft small" data-act="preset-200">Preencher base de R$ 200</button>' : ''}<div class="hint-box" style="margin-top:16px">Com ${money(c.base)} de base: hábitos dão até <strong>${money(capHab)}</strong> e escola até <strong>${money(capSch)}</strong> por mês.</div></div>
@@ -527,9 +573,12 @@
   const childOptions = (sel = state.selected) => state.children.map(c => `<option value="${c.id}" ${c.id === sel ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
 
   function openModal(which, id = '') {
-    const parentOnly = ['feedback', 'child', 'edit-child', 'spend', 'donate', 'classify'];
+    const parentOnly = ['mission-revision', 'feedback', 'child', 'edit-child', 'spend', 'donate', 'classify'];
     if (parentOnly.includes(which) && !isParent()) return notify('Só seus pais podem fazer isso.');
-    if (which === 'feedback') {
+    if (which === 'mission-revision') {
+      const x = state.missions.find(x => x.id === id); if (!x || x.status !== 'pending') return;
+      shellModal('Uma dica para tentar novamente', 'Valorize o esforço e explique o que falta concluir.', `<input type="hidden" name="id" value="${x.id}" />${input('note', 'Dica', 'type="text" maxlength="180" required')}`, 'Enviar dica', 'form-mission-revision');
+    } else if (which === 'feedback') {
       const o = state.occurrences.find(x => x.id === id); if (!o || o.polarity !== 'pos') return;
       shellModal('Reconhecer a conquista', `Uma mensagem para ${getChild(o.childId).name}, dizendo o que vocês valorizaram.`, `<input type="hidden" name="id" value="${o.id}" />${input('feedback', 'Mensagem', `type="text" maxlength="180" value="${esc(o.feedback || '')}" placeholder="Gostei da sua iniciativa ao ajudar..." required`)}`, 'Salvar reconhecimento', 'form-feedback');
     } else if (which === 'classify') {
@@ -757,6 +806,7 @@
     if (a === 'grade-approve') { gradeApprove(b.dataset.id); return; }
     if (a === 'grade-delete') { gradeDelete(b.dataset.id); return; }
     if (a === 'redeem') { redeemGoal(b.dataset.goal); return; }
+    if (a === 'mission-approve') { approveMission(b.dataset.key, b.dataset.child); return; }
     if (a === 'preset-200') { if (isParent()) { document.getElementById('cfg-base').value = '200'; notify('Base preenchida. Confira e salve as regras para aplicar.'); } return; }
     if (a === 'pay-installment') { releaseInstallment(b.dataset.child, Number(b.dataset.index)); return; }
     if (a === 'close-month') { closeMonth(state.selected); return; }
@@ -801,6 +851,18 @@
     // getAttribute: um campo name="id" sobrescreve form.id no DOM.
     const form = e.target, fid = form.getAttribute('id'); if (!fid) return; e.preventDefault();
     const data = Object.fromEntries(new FormData(form));
+    if (fid.startsWith('mission-')) {
+      const cid = viewerId(); if (!cid || !can.submit(cid)) return;
+      const m = R.missionsFor(period(), R.cycleOf(today())).find(x => x.key === data.key);
+      if (!m || today() > m.deadline) return notify('Esta missão já encerrou.');
+      const answer = String(data.answer || '').trim().slice(0, 1000);
+      if (!answer) return notify('Conte o que você fez ou como pensou.');
+      const existing = state.missions.find(x => x.key === m.key && x.childId === cid);
+      if (existing && existing.status !== 'revision') return notify('Você já enviou esta missão.');
+      if (existing) Object.assign(existing, { answer, status: 'pending', date: today() });
+      else state.missions.push({ id: uid(), childId: cid, key: m.key, date: today(), answer, status: 'pending' });
+      return commit('Tentativa registrada! Seus pais revisam neste aparelho.');
+    }
     if (fid === 'form-sim') return;
     if (fid === 'form-unlock') {
       const pin = state.config.pin;
@@ -858,6 +920,11 @@
     }
     if (!isParent()) return;
     // Só pais daqui pra baixo.
+    if (fid === 'form-mission-revision') {
+      const x = state.missions.find(x => x.id === data.id); if (!x || x.status !== 'pending') return;
+      const note = String(data.note || '').trim().slice(0, 180); if (!note) return;
+      x.note = note; x.status = 'revision'; modalHTML = ''; return commit('Dica enviada. Ela pode tentar de novo dentro do prazo.');
+    }
     if (fid === 'form-feedback') {
       const o = state.occurrences.find(x => x.id === data.id);
       if (!o || o.polarity !== 'pos' || monthClosed(o.childId, o.date.slice(0, 7))) return;
@@ -865,6 +932,7 @@
     }
     if (fid === 'settings') {
       const c = state.config;
+      c.missionCap = number(cents(data.missionCap), 0, 99900);
       c.base = number(cents(data.base), 0, 99900); c.habitsPct = number(data.habitsPct, 0, 100); c.schoolPct = number(data.schoolPct, 0, 100);
       c.centsPerPoint = number(data.centsPerPoint, 1, 100); c.interestPct = Math.max(0, Math.min(10, Math.round((Number(data.interestPct) || 0) * 2) / 2));
       c.familyGoal = { name: String(data.fgName || '').trim().slice(0, 40) || 'Passeio em família', emoji: String(data.fgEmoji || '🎡').trim().slice(0, 4) || '🎡', target: number(data.fgTarget, 1, 300) };
