@@ -226,7 +226,7 @@
 
   function bookCard(c) {
     const books = state.books.filter(x => x.childId === c.id).sort((a, b) => b.date.localeCompare(a.date));
-    return `<section class="card week-card" style="margin-top:16px"><div class="week-invite"><span aria-hidden="true">📚</span><div><h2>Finalizar a leitura de um livro</h2><p><b>+ ${money(R.BOOK_REWARD)} por livro</b>, após confirmação dos pais. Conquista especial, fora do teto das missões.</p></div></div><button class="btn positive" data-act="modal-book">Registrar livro finalizado</button><p class="section-hint" style="margin-top:12px">Uma recompensa por título e autor, para cada filha. A leitura deve estar concluída; vocês conversam sobre o livro para confirmar. O valor vai para os cofrinhos conforme a divisão combinada.</p>${books.length ? `<div class="list">${books.map(b => `<div class="list-row"><div class="list-main"><div class="list-name">${esc(b.title)}</div><div class="list-meta">${esc(b.author)} · ${fmtD(b.date)} · ${b.status === 'approved' ? 'R$ 50 liberados' : 'Aguardando confirmação'}</div></div>${isParent() && b.status === 'pending' ? `<button class="btn positive small" data-act="book-approve" data-id="${b.id}">Confirmar + R$ 50</button>` : ''}</div>`).join('')}</div>` : ''}</section>`;
+    return `<section class="card week-card" style="margin-top:16px"><div class="week-invite"><span aria-hidden="true">📚</span><div><h2>Finalizar a leitura de um livro</h2><p><b>+ ${money(R.BOOK_REWARD)} por livro</b>, após confirmação dos pais. Conquista especial, fora do teto das missões.</p></div></div><button class="btn positive" data-act="modal-book">Registrar livro finalizado</button><p class="section-hint" style="margin-top:12px">Conte sobre o livro em três respostas livres: resumo, passagem marcante e reflexão pessoal. Um parágrafo de pelo menos três linhas preenchidas em cada campo. Os pais leem e confirmam; o valor vai para os cofrinhos conforme a divisão combinada.</p>${books.length ? `<div class="list">${books.map(b => `<div class="list-row book-review"><div class="list-main"><div class="list-name">${esc(b.title)}</div><div class="list-meta">${esc(b.author)} · ${fmtD(b.date)} · ${b.status === 'approved' ? 'R$ 50 liberados' : R.validBookEvidence(b.evidence) ? 'Aguardando confirmação' : 'Falta completar as evidências'}</div><details class="book-evidence"><summary>Ler evidências da leitura</summary>${R.BOOK_EVIDENCE.map(f => `<h3>${esc(f.label)}</h3><p class="mission-text">${esc(b.evidence?.[f.id] || 'Ainda não preenchido.')}</p>`).join('')}</details></div><div class="btns">${b.status === 'pending' ? `<button class="btn secondary small" data-act="modal-book" data-id="${b.id}">Completar ou editar</button>` : ''}${isParent() && b.status === 'pending' ? `<button class="btn positive small" data-act="book-approve" data-id="${b.id}" ${R.validBookEvidence(b.evidence) ? '' : 'disabled'}>Confirmar + R$ 50</button>` : ''}</div></div>`).join('')}</div>` : ''}</section>`;
   }
   function approveBook(id) {
     if (!isParent()) return;
@@ -593,8 +593,10 @@
     const parentOnly = ['mission-revision', 'feedback', 'child', 'edit-child', 'spend', 'donate', 'classify'];
     if (parentOnly.includes(which) && !isParent()) return notify('Só seus pais podem fazer isso.');
     if (which === 'book') {
-      const c = currentChild(); if (!isParent() && !isOwn(c.id)) return;
-      shellModal('Livro finalizado · R$ 50', `Registre a leitura de ${c.name}. Os pais confirmam antes da recompensa.`, `<input type="hidden" name="child" value="${c.id}" />${input('title', 'Título do livro', 'type="text" maxlength="120"')}${input('author', 'Autor ou autora', 'type="text" maxlength="100"')}${input('date', 'Data de conclusão', `type="date" max="${today()}" value="${today()}"`)}`, 'Registrar para confirmação', 'form-book');
+      const book = id ? state.books.find(x => x.id === id) : null;
+      if (id && (!book || book.status !== 'pending')) return;
+      const c = book ? getChild(book.childId) : currentChild(); if (!isParent() && !isOwn(c.id)) return;
+      shellModal('Livro finalizado · R$ 50', `Registre a leitura de ${c.name}. Escreva com suas palavras um parágrafo em cada campo. Use Enter para separar pelo menos três linhas de texto; linhas em branco não contam.`, `<input type="hidden" name="child" value="${c.id}" /><input type="hidden" name="bookId" value="${book?.id || ''}" />${input('title', 'Título do livro', `type="text" maxlength="120" value="${esc(book?.title || '')}"`)}${input('author', 'Autor ou autora', `type="text" maxlength="100" value="${esc(book?.author || '')}"`)}${input('date', 'Data de conclusão', `type="date" max="${today()}" value="${book?.date || today()}"`)}${R.BOOK_EVIDENCE.map(f => `<div class="form-field"><label for="book-${f.id}">${esc(f.label)}</label><p id="book-help-${f.id}" class="section-hint">${esc(f.help)}</p><textarea id="book-${f.id}" name="${f.id}" rows="5" maxlength="4000" required aria-describedby="book-help-${f.id} book-count-${f.id}" placeholder="Escreva livremente. Use Enter para criar pelo menos três linhas preenchidas.">${esc(book?.evidence?.[f.id] || '')}</textarea><small id="book-count-${f.id}" aria-live="polite">${R.evidenceLines(book?.evidence?.[f.id])}/3 linhas preenchidas (mínimo)</small></div>`).join('')}`, 'Registrar para confirmação', 'form-book');
     } else if (which === 'mission-revision') {
       const x = state.missions.find(x => x.id === id); if (!x || x.status !== 'pending') return;
       shellModal('Uma dica para tentar novamente', 'Valorize o esforço e explique o que falta concluir.', `<input type="hidden" name="id" value="${x.id}" />${input('note', 'Dica', 'type="text" maxlength="180" required')}`, 'Enviar dica', 'form-mission-revision');
@@ -862,6 +864,11 @@
   document.addEventListener('input', e => {
     const form = e.target.form, fid = form?.getAttribute('id');
     if (fid === 'form-lancar') updateLancarPreview(form);
+    if (fid === 'form-book' && R.BOOK_EVIDENCE.some(f => f.id === e.target.name)) {
+      const count = R.evidenceLines(e.target.value);
+      const out = document.getElementById(`book-count-${e.target.name}`);
+      if (out) out.textContent = `${count}/3 linhas preenchidas (mínimo)`;
+    }
     if (fid === 'form-sim') {
       const d = Object.fromEntries(new FormData(form)), out = document.getElementById('sim-out');
       if (out) out.innerHTML = simText(number(cents(d.monthly || 0), 0, 1000000), number(d.months, 1, 120), Math.max(0, Math.min(10, Number(d.pct) || 0)));
@@ -876,9 +883,19 @@
       const cid = data.child; if (!state.children.some(c => c.id === cid) || (!isParent() && !isOwn(cid))) return;
       const title = String(data.title || '').trim().slice(0, 120), author = String(data.author || '').trim().slice(0, 100), date = String(data.date || '');
       if (!title || !author || !/^\d{4}-\d{2}-\d{2}$/.test(date) || date > today()) return notify('Informe título, autor e uma data válida.');
+      const existing = data.bookId ? state.books.find(x => x.id === data.bookId && x.childId === cid && x.status === 'pending') : null;
+      if (data.bookId && !existing) return;
+      const evidence = Object.fromEntries(R.BOOK_EVIDENCE.map(f => [f.id, String(data[f.id] || '').trim().slice(0, 4000)]));
+      if (!R.validBookEvidence(evidence)) {
+        const missing = R.BOOK_EVIDENCE.find(f => R.evidenceLines(evidence[f.id]) < 3);
+        document.getElementById(`book-${missing.id}`)?.focus();
+        return notify('Cada resposta precisa ter pelo menos três linhas preenchidas. Use Enter para separar as linhas.');
+      }
       const key = R.bookKey(title, author);
-      if (state.books.some(x => x.childId === cid && R.bookKey(x.title, x.author) === key)) return notify('Este livro já está registrado para ela.');
-      state.books.push({ id: uid(), childId: cid, title, author, date, status: 'pending' }); modalHTML = '';
+      if (state.books.some(x => x.id !== existing?.id && x.childId === cid && R.bookKey(x.title, x.author) === key)) return notify('Este livro já está registrado para ela.');
+      if (existing) Object.assign(existing, { title, author, date, evidence });
+      else state.books.push({ id: uid(), childId: cid, title, author, date, evidence, status: 'pending' });
+      modalHTML = '';
       return commit('Livro registrado! A recompensa espera confirmação dos pais.');
     }
     if (fid.startsWith('mission-')) {

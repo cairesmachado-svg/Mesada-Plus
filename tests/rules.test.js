@@ -316,3 +316,20 @@ test('missões: backup antigo ganha estrutura, novo mantém relatos e recompensa
   assert.equal(R.migrate(s).view, 'missions');
   for (let w = 0; w < 4; w++) assert.equal(R.missionsFor('2026-10', w).length, 3);
 });
+
+test('evidências de livro exigem três linhas não vazias em cada resposta', () => {
+  const evidence = { summary: 'A\nB\nC', passage: 'D\nE\nF', reflection: 'G\nH\nI' };
+  assert.equal(R.validBookEvidence(evidence), true);
+  assert.equal(R.validBookEvidence({ ...evidence, summary: 'A\n\nB\n  ' }), false);
+  assert.equal(R.validBookEvidence({ ...evidence, passage: 'Uma linha longa não conta como três linhas.' }), false);
+  assert.equal(R.evidenceLines('A\r\nB\r\nC'), 3);
+  const s = fresh();
+  s.books = [{ id: 'livro1', childId: 'alice', title: 'Livro', author: 'Autora', date: TODAY, status: 'pending' }];
+  assert.match(R.bookReward(s, 'livro1').error, /evidências/);
+  s.books[0].evidence = evidence;
+  assert.equal(R.bookReward(s, 'livro1').amount, 5000);
+  const restored = R.migrate(s);
+  assert.deepEqual(restored.books[0].evidence, evidence);
+  delete s.books[0].evidence; s.books[0].status = 'approved';
+  assert.equal(R.migrate(s).books[0].status, 'approved');
+});

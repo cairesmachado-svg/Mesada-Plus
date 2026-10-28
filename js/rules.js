@@ -103,10 +103,19 @@
   const XP_GOAL_DONE = 30;
 
   const BOOK_REWARD = 5000;
+  const BOOK_EVIDENCE = [
+    { id: 'summary', label: '1. Resumo: do que trata o livro?', help: 'Conte com suas palavras o tema ou a história, as pessoas ou ideias principais e como o livro se desenvolve. Vale para ficção e não ficção.' },
+    { id: 'passage', label: '2. Uma passagem ou ideia marcante', help: 'Descreva uma cena, argumento ou descoberta específica do livro e explique por que chamou sua atenção. Não precisa copiar uma citação.' },
+    { id: 'reflection', label: '3. Minha opinião e o que aprendi', help: 'Diga o que achou da leitura, explique sua opinião com um exemplo e conte uma reflexão ou aprendizado que ficou.' }
+  ];
+  const evidenceLines = text => String(text || '').split(/\r?\n/).filter(line => line.trim()).length;
+  const validBookEvidence = evidence => BOOK_EVIDENCE.every(field => evidenceLines(evidence?.[field.id]) >= 3);
+
   const bookKey = (title, author) => `${title}|${author}`.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase().replace(/\s+/g, ' ');
   function bookReward(state, id) {
     const book = (state.books || []).find(b => b.id === id);
     if (!book || book.status !== 'pending') return { error: 'Esta leitura não está pendente.' };
+    if (!validBookEvidence(book.evidence)) return { error: 'Complete as três evidências: cada resposta precisa ter pelo menos três linhas preenchidas.' };
     if (state.ledger.some(x => x.type === 'book' && (x.bookId === id || (x.childId === book.childId && x.bookKey === bookKey(book.title, book.author))))) return { error: 'Este livro já recebeu a recompensa.' };
     return { book, amount: BOOK_REWARD };
   }
@@ -568,7 +577,7 @@
       .map(x => ({ ...x, description: String(x.description || '').slice(0, 90) }));
     s.closures = s.closures.filter(x => x && kids.has(x.childId) && Number.isSafeInteger(x.total));
     s.importedIds = s.importedIds.filter(x => typeof x === 'string').slice(-2000);
-    s.books = s.books.filter(x => own(x) && typeof x.title === 'string' && x.title.trim()).map(x => ({ ...x, title: x.title.trim().slice(0, 120), author: String(x.author || '').trim().slice(0, 100), status: x.status === 'approved' ? 'approved' : 'pending' }));
+    s.books = s.books.filter(x => own(x) && typeof x.title === 'string' && x.title.trim()).map(x => ({ ...x, title: x.title.trim().slice(0, 120), author: String(x.author || '').trim().slice(0, 100), status: x.status === 'approved' ? 'approved' : 'pending', evidence: Object.fromEntries(BOOK_EVIDENCE.map(f => [f.id, String(x.evidence?.[f.id] || '').slice(0, 4000)])) }));
     s.missions = s.missions.filter(x => own(x) && typeof x.key === 'string' && /^\d{4}-\d{2}_[0-3]_[a-z]+$/.test(x.key)).map(x => ({ ...x, answer: String(x.answer || '').slice(0, 1000), note: String(x.note || '').slice(0, 180), status: ['pending', 'approved', 'revision'].includes(x.status) ? x.status : 'revision' }));
     s.tasks = mergeTasks(s.tasks);
     if (!s.seenBadges || typeof s.seenBadges !== 'object') s.seenBadges = {};
@@ -582,7 +591,7 @@
   }
 
   return {
-    BOOK_REWARD, bookKey, bookReward, MISSION_SETS, missionsFor, missionPaid, missionApproval, VERSION, NEG_KINDS, UNCLASSIFIED, POS_KINDS, SUBJECTS, GRADE_TIERS, IMPROVE, POSITIVE, NEGATIVE, CONCEPTS,
+    BOOK_EVIDENCE, evidenceLines, validBookEvidence, BOOK_REWARD, bookKey, bookReward, MISSION_SETS, missionsFor, missionPaid, missionApproval, VERSION, NEG_KINDS, UNCLASSIFIED, POS_KINDS, SUBJECTS, GRADE_TIERS, IMPROVE, POSITIVE, NEGATIVE, CONCEPTS,
     DEFAULT_TASKS, DEFAULT_CONFIG, DEFAULT_SPLIT, DEFAULT_PARENTS, LEVELS, LEVEL_NAMES, BADGES, XP_GOAL_DONE,
     dateOfDay, monthDays, cycleOf, datesForCycle, addDays, daysBetween, inMonth, byDate,
     parseGrade, gradePoints, previousGrade, findKind, findPos, schoolMonth, habitsPtsMonth, childBase,

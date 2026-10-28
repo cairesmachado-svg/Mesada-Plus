@@ -92,3 +92,10 @@
 .mission-text { white-space:pre-wrap; overflow-wrap:anywhere; font-size:13px; line-height:1.6; }
 .mission-review { align-items:flex-start; flex-wrap:wrap; }
 @media(max-width:900px) { .mission-teaser { flex-direction:column; align-items:stretch; } .grid.three.missions-grid { grid-template-columns:1fr; } .mobile-nav button { min-width:0; font-size:9px; } }
+
+.book-review { flex-wrap:wrap; align-items:flex-start; }
+.book-evidence { margin-top:12px; }
+.book-evidence summary { cursor:pointer; color:#695ce6; font-weight:700; font-size:12px; }
+.book-evidence h3 { font-size:13px; margin:16px 0 6px; }
+#form-book textarea { margin-top:8px; line-height:1.6; min-height:150px; }
+#form-book .section-hint { line-height:1.6; }

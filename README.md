@@ -106,3 +106,7 @@ Para uso real por várias famílias: autenticação, dados isolados por família
 ## Conquista especial: livro finalizado
 
 Em **Conquistas**, cada filha pode registrar título, autor e data de conclusão de um livro. Após confirmação de Igor ou Luciana, são liberados **R$ 50 por livro**, seguindo a divisão dos cofrinhos. Esta recompensa não está sujeita ao teto de R$ 20 das missões e não é paga novamente no fechamento mensal. O mesmo título/autor só pode receber uma recompensa por filha. A conquista “Livro finalizado” é desbloqueada após a primeira confirmação.
+
+### Evidências da leitura
+
+O registro de livro exige três respostas livres: resumo do conteúdo, passagem ou ideia marcante e opinião/aprendizado pessoal. Cada campo exige pelo menos três linhas não vazias, separadas com Enter, independentemente da largura da tela. Os pais podem expandir “Ler evidências da leitura” antes da confirmação. Livros pendentes antigos podem ter as evidências completadas; pagamentos já confirmados são preservados. A validação verifica o preenchimento, não comprova sozinha a leitura: a confirmação continua com os responsáveis.

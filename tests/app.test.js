@@ -103,7 +103,7 @@ test('missão cooperativa: aguarda as duas e credita simultaneamente', async () 
 
 test('livro: recompensa de R$ 50 fora do teto, somente pais e sem duplicação', async () => {
   const a = app(); a.role('child:alice');
-  await a.submit({ child: 'alice', title: 'O Pequeno Príncipe', author: 'Antoine de Saint-Exupéry', date: '2026-10-31' }, 'form-book');
+  await a.submit({ child: 'alice', title: 'O Pequeno Príncipe', author: 'Antoine de Saint-Exupéry', date: '2026-10-31', summary: 'Uma história sobre encontros.\nO viajante conhece outros mundos.\nEle reflete sobre as relações.', passage: 'A conversa com a raposa me marcou.\nEla fala da criação de laços.\nIsso ajuda a entender a amizade.', reflection: 'Gostei de pensar sobre o cuidado.\nO exemplo da rosa mostra responsabilidade.\nAprendi a valorizar meus amigos.' }, 'form-book');
   let state = a.state(); assert.equal(state.books.length, 1);
   const id = state.books[0].id;
   a.click({ act: 'book-approve', id }); assert.equal(R.jarSpend(a.state(), 'alice'), 0);
@@ -114,7 +114,22 @@ test('livro: recompensa de R$ 50 fora do teto, somente pais e sem duplicação',
   assert.equal(R.missionPaid(state, 'alice', '2026-10'), 0);
   assert.equal(R.remainingPayout(state, 'alice', '2026-10'), 10000);
   assert.ok(R.badges(state, 'alice', '2026-10-31').has('livro'));
-  await a.submit({ child: 'alice', title: 'O Pequeno Príncipe', author: 'Antoine de Saint-Exupéry', date: '2026-10-31' }, 'form-book');
+  await a.submit({ child: 'alice', title: 'O Pequeno Príncipe', author: 'Antoine de Saint-Exupéry', date: '2026-10-31', summary: 'Uma história sobre encontros.\nO viajante conhece outros mundos.\nEle reflete sobre as relações.', passage: 'A conversa com a raposa me marcou.\nEla fala da criação de laços.\nIsso ajuda a entender a amizade.', reflection: 'Gostei de pensar sobre o cuidado.\nO exemplo da rosa mostra responsabilidade.\nAprendi a valorizar meus amigos.' }, 'form-book');
   assert.equal(a.state().books.length, 1);
   assert.equal(R.migrate(state).books[0].title, 'O Pequeno Príncipe');
+});
+
+test('livro sem evidências suficientes não é registrado; pendente antigo aceita complemento', async () => {
+  const a = app(); a.role('child:alice');
+  const fields = { child: 'alice', title: 'Livro', author: 'Autora', date: '2026-10-31', summary: 'Uma linha', passage: 'Uma\nDuas\nTrês', reflection: 'Uma\nDuas\nTrês' };
+  await a.submit(fields, 'form-book'); assert.equal(a.state().books.length, 0);
+  const s = R.seed(); s.books = [{ id: 'antigo', childId: 'alice', title: 'Livro', author: 'Autora', date: '2026-10-31', status: 'pending' }];
+  const b = app(s); b.role('child:alice');
+  await b.submit({ ...fields, bookId: 'antigo', summary: 'Uma\nDuas\nTrês' }, 'form-book');
+  assert.equal(b.state().books.length, 1);
+  assert.equal(R.validBookEvidence(b.state().books[0].evidence), true);
+  b.role('parent:igor'); b.click({ act: 'nav', view: 'dashboard' });
+  assert.match(b.html(), /Ler evidências da leitura/);
+  b.click({ act: 'book-approve', id: 'antigo' });
+  assert.equal(b.state().books[0].status, 'approved');
 });
